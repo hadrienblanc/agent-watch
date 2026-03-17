@@ -123,4 +123,4 @@ Generates PNGs in `screenshots/` with synthetic data for all 8 tabs.
 
 ## License
 
-MIT
+[MIT](MIT-LICENSE)
