@@ -144,9 +144,11 @@ type ModelPricing struct {
 // Pricing par modèle ($/M tokens).
 var modelPricing = map[string]ModelPricing{
 	// Anthropic
-	"claude-opus-4-6":   {InputPerM: 15.0, OutputPerM: 75.0, CacheReadPerM: 1.50, CacheWritePerM: 18.75},
-	"claude-sonnet-4-6": {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
-	"claude-haiku-4-5":  {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
+	"claude-opus-4-6":    {InputPerM: 15.0, OutputPerM: 75.0, CacheReadPerM: 1.50, CacheWritePerM: 18.75},
+	"claude-sonnet-4-6":  {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
+	"claude-sonnet-4-5":  {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
+	"claude-haiku-4-5":   {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
+	"claude-haiku-3-5":   {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
 	// ZhipuAI (GLM)
 	"glm-5":         {InputPerM: 0.72, OutputPerM: 2.30, CacheReadPerM: 0.19, CacheWritePerM: 0.72},
 	"glm-4.7":       {InputPerM: 0.50, OutputPerM: 2.00, CacheReadPerM: 0.13, CacheWritePerM: 0.50},
@@ -154,10 +156,20 @@ var modelPricing = map[string]ModelPricing{
 	"glm-4.5":       {InputPerM: 0.60, OutputPerM: 2.20, CacheReadPerM: 0.11, CacheWritePerM: 0.60},
 	// MiniMax
 	"MiniMax-M2.5": {InputPerM: 0.30, OutputPerM: 1.20, CacheReadPerM: 0.03, CacheWritePerM: 0.375},
-	// OpenAI (Codex)
+	// OpenAI
 	"gpt-5.3-codex": {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
 	"gpt-5.4":       {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
+	"gpt-4.1":       {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
 	"gpt-4o":        {InputPerM: 2.50, OutputPerM: 10.0, CacheReadPerM: 1.25, CacheWritePerM: 2.50},
+	"gpt-4o-mini":   {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.075, CacheWritePerM: 0.15},
+	"o3":            {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
+	"o4-mini":       {InputPerM: 1.10, OutputPerM: 4.40, CacheReadPerM: 0.275, CacheWritePerM: 1.10},
+	// Google
+	"gemini-2.5-pro":   {InputPerM: 1.25, OutputPerM: 10.0, CacheReadPerM: 0.315, CacheWritePerM: 4.50},
+	"gemini-2.5-flash": {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
+	"gemini-2.0-flash": {InputPerM: 0.10, OutputPerM: 0.40, CacheReadPerM: 0.025, CacheWritePerM: 0.10},
+	// Coût nul (synthétique)
+	"<synthetic>": {InputPerM: 0, OutputPerM: 0, CacheReadPerM: 0, CacheWritePerM: 0},
 }
 
 // Pricing par défaut (Opus) pour modèles inconnus.
