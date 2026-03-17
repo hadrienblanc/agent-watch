@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Entry est une ligne du fichier JSONL de conversation.
+// Entry represents a line from a conversation JSONL file.
 type Entry struct {
 	Type       string    `json:"type"`
 	UUID       string    `json:"uuid"`
@@ -52,7 +52,7 @@ type CacheDetail struct {
 	Ephemeral1h int `json:"ephemeral_1h_input_tokens"`
 }
 
-// dayKey retourne la date tronquée au jour.
+// dayKey represents a date truncated to the day.
 type dayKey struct {
 	Year  int
 	Month time.Month
@@ -67,7 +67,7 @@ func (dk dayKey) Time() time.Time {
 	return time.Date(dk.Year, dk.Month, dk.Day, 0, 0, 0, 0, time.Local)
 }
 
-// DayTokens agrège les tokens d'une journée dans une session.
+// DayTokens aggregates tokens for a single day within a session.
 type DayTokens struct {
 	Input    int
 	Output   int
@@ -77,7 +77,7 @@ type DayTokens struct {
 	Cost     float64
 }
 
-// Sources disponibles.
+// Available sources.
 const (
 	SourceClaude   = "claude"
 	SourceOpenCode = "opencode"
@@ -85,7 +85,7 @@ const (
 	SourceGemini   = "gemini"
 )
 
-// Session résume une conversation.
+// Session summarizes a conversation.
 type Session struct {
 	ID        string
 	Source    string
@@ -112,11 +112,11 @@ type Session struct {
 
 	Cost float64
 
-	// Tokens par jour (pour calcul coût journalier)
+	// Tokens per day (for daily cost calculation)
 	PerDay map[dayKey]*DayTokens
 }
 
-// ProjectSummary résume un projet.
+// ProjectSummary summarizes a project.
 type ProjectSummary struct {
 	Name         string
 	Path         string
@@ -129,7 +129,7 @@ type ProjectSummary struct {
 	Cost         float64
 }
 
-// DayCost regroupe les coûts d'une journée.
+// DayCost groups costs for a single day.
 type DayCost struct {
 	Date         time.Time
 	InputTokens  int
@@ -141,7 +141,7 @@ type DayCost struct {
 	Cost         float64
 }
 
-// ModelPricing contient le pricing par million de tokens pour un modèle.
+// ModelPricing contains the pricing per million tokens for a model.
 type ModelPricing struct {
 	InputPerM      float64
 	OutputPerM     float64
@@ -149,7 +149,7 @@ type ModelPricing struct {
 	CacheWritePerM float64
 }
 
-// Pricing par modèle ($/M tokens).
+// Pricing per model ($/M tokens).
 var modelPricing = map[string]ModelPricing{
 	// Anthropic
 	"claude-opus-4-6":   {InputPerM: 15.0, OutputPerM: 75.0, CacheReadPerM: 1.50, CacheWritePerM: 18.75},
@@ -178,15 +178,15 @@ var modelPricing = map[string]ModelPricing{
 	"gemini-2.5-flash-lite":  {InputPerM: 0.05, OutputPerM: 0.20, CacheReadPerM: 0.0125, CacheWritePerM: 0.05},
 	"gemini-3-flash-preview": {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
 	"gemini-2.0-flash":       {InputPerM: 0.10, OutputPerM: 0.40, CacheReadPerM: 0.025, CacheWritePerM: 0.10},
-	// Coût nul (synthétique)
+	// Zero cost (synthetic)
 	"<synthetic>": {InputPerM: 0, OutputPerM: 0, CacheReadPerM: 0, CacheWritePerM: 0},
 }
 
-// Pricing par défaut (Opus) pour modèles inconnus.
+// Default pricing (Opus) for unknown models.
 var defaultPricing = modelPricing["claude-opus-4-6"]
 
 func pricingFor(model string) ModelPricing {
-	// Chercher une correspondance exacte ou par préfixe
+	// Look for an exact or prefix match
 	if p, ok := modelPricing[model]; ok {
 		return p
 	}
@@ -198,9 +198,9 @@ func pricingFor(model string) ModelPricing {
 	return defaultPricing
 }
 
-// ComputeCost calcule le coût estimé en dollars pour un modèle donné.
-// inputTokens = tokens non-cachés (cache miss), cacheRead = tokens lus du cache,
-// cacheWrite = tokens écrits au cache (cache_creation_input_tokens).
+// ComputeCost calculates the estimated cost in dollars for a given model.
+// inputTokens = non-cached tokens (cache miss), cacheRead = tokens read from cache,
+// cacheWrite = tokens written to cache (cache_creation_input_tokens).
 func ComputeCost(model string, inputTokens, outputTokens, cacheRead, cacheWrite int) float64 {
 	p := pricingFor(model)
 	return float64(inputTokens)*p.InputPerM/1_000_000 +
@@ -209,7 +209,7 @@ func ComputeCost(model string, inputTokens, outputTokens, cacheRead, cacheWrite 
 		float64(cacheWrite)*p.CacheWritePerM/1_000_000
 }
 
-// Stats agrège toutes les données pour le dashboard.
+// Stats aggregates all data for the dashboard.
 type Stats struct {
 	Sessions  []Session
 	Projects  []ProjectSummary
@@ -223,8 +223,8 @@ type Stats struct {
 	TotalToolErrors   int
 	TotalSessions     int
 
-	// Temporels
-	ActiveSessions int // activité dans les 30 dernières minutes
+	// Temporal
+	ActiveSessions int // activity in the last 30 minutes
 	TodaySessions  int
 	TodayMessages  int
 	TodayTokens    int
@@ -232,7 +232,7 @@ type Stats struct {
 	WeekMessages   int
 	WeekTokens     int
 
-	// Coûts par jour (60 derniers jours)
+	// Daily costs (last 60 days)
 	DailyCosts []DayCost
 	TotalCost  float64
 
@@ -247,7 +247,7 @@ func claudeDir() string {
 	return filepath.Join(home, ".claude")
 }
 
-// aggregateSession agrège les métriques d'une session dans les stats globales.
+// aggregateSession aggregates session metrics into global stats.
 func aggregateSession(stats *Stats, s *Session) {
 	stats.TotalInputTokens += s.InputTokens
 	stats.TotalOutputTokens += s.OutputTokens
@@ -264,7 +264,7 @@ func aggregateSession(stats *Stats, s *Session) {
 	}
 }
 
-// aggregateProject agrège les métriques d'une session dans un résumé projet.
+// aggregateProject aggregates session metrics into a project summary.
 func aggregateProject(ps *ProjectSummary, s *Session) {
 	ps.Sessions++
 	ps.Messages += s.UserMessages + s.AssistantMessages
@@ -275,7 +275,7 @@ func aggregateProject(ps *ProjectSummary, s *Session) {
 	ps.Cost += s.Cost
 }
 
-// LoadStats charge et agrège toutes les conversations.
+// LoadStats loads and aggregates all conversations.
 func LoadStats() (*Stats, error) {
 	projectsDir := filepath.Join(claudeDir(), "projects")
 	entries, err := os.ReadDir(projectsDir)
@@ -317,7 +317,7 @@ func LoadStats() (*Stats, error) {
 		stats.Projects = append(stats.Projects, projSummary)
 	}
 
-	// Charger OpenCode et Codex
+	// Load OpenCode and Codex
 	for _, loader := range []struct {
 		name string
 		fn   func() ([]Session, error)
@@ -331,7 +331,7 @@ func LoadStats() (*Stats, error) {
 			continue
 		}
 
-		// Agréger par projet
+		// Aggregate by project
 		projMap := make(map[string]*ProjectSummary)
 		for i := range extraSessions {
 			s := &extraSessions[i]
@@ -354,7 +354,7 @@ func LoadStats() (*Stats, error) {
 
 	stats.TotalSessions = len(stats.Sessions)
 
-	// Compteurs temporels
+	// Temporal counters
 	now := time.Now()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	weekStart := todayStart.AddDate(0, 0, -int(todayStart.Weekday()-time.Monday))
@@ -382,17 +382,17 @@ func LoadStats() (*Stats, error) {
 		}
 	}
 
-	// Trier sessions par date décroissante
+	// Sort sessions by descending date
 	sort.Slice(stats.Sessions, func(i, j int) bool {
 		return stats.Sessions[i].StartTime.After(stats.Sessions[j].StartTime)
 	})
 
-	// Trier projets par messages décroissants
+	// Sort projects by descending messages
 	sort.Slice(stats.Projects, func(i, j int) bool {
 		return stats.Projects[i].Messages > stats.Projects[j].Messages
 	})
 
-	// Modèle principal
+	// Primary model
 	maxCount := 0
 	for model, count := range stats.Models {
 		if count > maxCount {
@@ -401,7 +401,7 @@ func LoadStats() (*Stats, error) {
 		}
 	}
 
-	// Coûts par jour (60 derniers jours)
+	// Daily costs (last 60 days)
 	dayMap := make(map[dayKey]*DayCost)
 	cutoff := now.AddDate(0, 0, -60)
 
@@ -425,7 +425,7 @@ func LoadStats() (*Stats, error) {
 		}
 	}
 
-	// Remplir les jours sans activité et trier
+	// Fill days without activity and sort
 	for d := cutoff; !d.After(now); d = d.AddDate(0, 0, 1) {
 		dk := dayKeyFrom(d)
 		if _, ok := dayMap[dk]; !ok {
@@ -457,7 +457,7 @@ func loadProjectSessions(projectDir string) ([]Session, error) {
 
 	var sessions []Session
 	for _, f := range files {
-		// Ignorer le fichier memory
+		// Skip memory file
 		if strings.Contains(filepath.Base(f), "memory") {
 			continue
 		}
@@ -543,7 +543,7 @@ func parseSession(path string) (*Session, error) {
 				msgCost := ComputeCost(entry.Message.Model, u.InputTokens, u.OutputTokens, u.CacheReadInputTokens, u.CacheCreationInputTokens)
 				s.Cost += msgCost
 
-				// Agréger par jour
+				// Aggregate by day
 				if !entry.Timestamp.IsZero() {
 					dk := dayKeyFrom(entry.Timestamp)
 					dt := s.PerDay[dk]
@@ -589,15 +589,15 @@ func parseSession(path string) (*Session, error) {
 func decodeProjectName(encoded string) string {
 	// "-home-hadrienblanc-Projets-tests-form-on-terminal" -> "form-on-terminal"
 	parts := strings.Split(encoded, "-")
-	// Prendre les 2-3 derniers segments significatifs
+	// Take the last 2-3 significant segments
 	if len(parts) > 2 {
-		// Trouver le dernier segment non-vide significatif
+		// Find the last significant non-empty segment
 		result := parts[len(parts)-1]
 		for i := len(parts) - 2; i >= 0; i-- {
 			if parts[i] == "" {
 				continue
 			}
-			// S'arrêter à des mots comme "Projets", "home", etc.
+			// Stop at words like "Projets", "home", etc.
 			lower := strings.ToLower(parts[i])
 			if lower == "projets" || lower == "home" || lower == "tests" || lower == "" {
 				break

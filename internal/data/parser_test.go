@@ -845,7 +845,7 @@ func TestLoadGeminiSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadGeminiSessions() error: %v", err)
 	}
-	// On sait qu'il y a des sessions gemini sur cette machine
+	// We know there are gemini sessions on this machine
 	if len(sessions) == 0 {
 		t.Skip("no gemini sessions found")
 	}
@@ -878,7 +878,7 @@ func TestLoadStatsFromReal(t *testing.T) {
 		t.Error("expected an active model")
 	}
 
-	// Vérifier que les sources gemini sont incluses
+	// Verify that gemini sources are included
 	hasGemini := false
 	for _, s := range stats.Sessions {
 		if s.Source == "gemini" {

@@ -43,23 +43,23 @@ func geminiDir() string {
 	return filepath.Join(home, ".gemini")
 }
 
-// LoadGeminiSessions charge les sessions depuis les fichiers JSON de Gemini CLI.
+// LoadGeminiSessions loads sessions from Gemini CLI JSON files.
 func LoadGeminiSessions() ([]Session, error) {
 	baseDir := geminiDir()
 	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
 		return nil, nil
 	}
 
-	// Charger le mapping projets
+	// Load the project mapping
 	projMap := loadGeminiProjects(filepath.Join(baseDir, "projects.json"))
 
-	// Inverser: slug -> project name (dernier segment du path)
+	// Reverse: slug -> project name (last segment of path)
 	slugToProject := make(map[string]string)
 	for path, slug := range projMap {
 		slugToProject[slug] = projectFromDir(path)
 	}
 
-	// Scanner tous les dossiers dans tmp/
+	// Scan all folders in tmp/
 	tmpDir := filepath.Join(baseDir, "tmp")
 	slugDirs, err := os.ReadDir(tmpDir)
 	if err != nil {

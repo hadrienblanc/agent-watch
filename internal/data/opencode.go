@@ -33,7 +33,7 @@ func openCodeDBPath() string {
 	return filepath.Join(home, ".local", "share", "opencode", "opencode.db")
 }
 
-// LoadOpenCodeSessions charge les sessions depuis la DB OpenCode.
+// LoadOpenCodeSessions loads sessions from the OpenCode DB.
 func LoadOpenCodeSessions() ([]Session, error) {
 	dbPath := openCodeDBPath()
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
@@ -46,7 +46,7 @@ func LoadOpenCodeSessions() ([]Session, error) {
 	}
 	defer db.Close()
 
-	// Charger les sessions
+	// Load sessions
 	rows, err := db.Query(`
 		SELECT s.id, s.slug, s.directory, s.title, s.version, s.time_created, s.time_updated
 		FROM session s
@@ -86,7 +86,7 @@ func LoadOpenCodeSessions() ([]Session, error) {
 			PerDay:    make(map[dayKey]*DayTokens),
 		}
 
-		// Charger les messages de cette session
+		// Load messages for this session
 		msgRows, err := db.Query(`
 			SELECT data, time_created FROM message WHERE session_id = ? ORDER BY time_created
 		`, sr.id)
@@ -122,7 +122,7 @@ func LoadOpenCodeSessions() ([]Session, error) {
 				}
 				s.InputTokens += md.Tokens.Input
 				s.OutputTokens += md.Tokens.Output
-				s.CacheReadTokens += 0 // pas dispo dans OpenCode
+				s.CacheReadTokens += 0 // not available in OpenCode
 
 				msgCost := ComputeCost(model, md.Tokens.Input, md.Tokens.Output, 0, 0)
 				s.Cost += msgCost

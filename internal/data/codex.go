@@ -48,7 +48,7 @@ func codexDBPath() string {
 	return filepath.Join(home, ".codex", "state_5.sqlite")
 }
 
-// LoadCodexSessions charge les sessions depuis la DB Codex + JSONL.
+// LoadCodexSessions loads sessions from the Codex DB + JSONL.
 func LoadCodexSessions() ([]Session, error) {
 	dbPath := codexDBPath()
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
@@ -96,13 +96,13 @@ func LoadCodexSessions() ([]Session, error) {
 			PerDay:    make(map[dayKey]*DayTokens),
 		}
 
-		// Enrichir depuis le JSONL si disponible
+		// Enrich from JSONL if available
 		jsonlPath := expandRolloutPath(rolloutPath)
 		if jsonlPath != "" {
 			enrichCodexSession(&s, jsonlPath)
 		}
 
-		// Fallback: utiliser tokens_used de la DB si pas de données JSONL
+		// Fallback: use tokens_used from DB if no JSONL data
 		if s.InputTokens == 0 && s.OutputTokens == 0 && tokensUsed > 0 {
 			// Estimation: ~80% input, ~20% output
 			s.InputTokens = tokensUsed * 80 / 100
@@ -156,7 +156,7 @@ func enrichCodexSession(s *Session, path string) {
 			}
 
 		case "turn_context":
-			// Extraire le modèle
+			// Extract the model
 			var tc struct {
 				Model string `json:"model"`
 			}
