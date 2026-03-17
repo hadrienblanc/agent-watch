@@ -5,6 +5,7 @@ import (
 	"net"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"claude_monitor/internal/data"
@@ -24,9 +25,11 @@ type sortOrder struct {
 }
 
 type Dashboard struct {
-	stats     *data.Stats
+	stats      *data.Stats
 	localStats *data.Stats // Stats without peer aggregation
-	width     int
+	// sharedLocalStats is shared across bubbletea model copies for the HTTP API.
+	sharedLocalStats *atomic.Pointer[data.Stats]
+	width int
 	height    int
 	tab       int // 0=overview, 1=sessions, 2=tools, 3=projects, 4=costs, 5=sources, 6=models, 7=network
 	scroll    int
@@ -50,14 +53,15 @@ type Dashboard struct {
 
 func NewDashboard() Dashboard {
 	d := Dashboard{
-		loading:      true,
-		sortSessions: sortOrder{col: "m", asc: false},
-		sortTools:    sortOrder{col: "a", asc: false},
-		sortProjects: sortOrder{col: "m", asc: false},
-		sortCosts:    sortOrder{col: "date", asc: false},
-		sortModels:   sortOrder{col: "msgs", asc: false},
-		costView:     "g",
-		port:         9999,
+		loading:          true,
+		sharedLocalStats: &atomic.Pointer[data.Stats]{},
+		sortSessions:     sortOrder{col: "m", asc: false},
+		sortTools:        sortOrder{col: "a", asc: false},
+		sortProjects:     sortOrder{col: "m", asc: false},
+		sortCosts:        sortOrder{col: "date", asc: false},
+		sortModels:       sortOrder{col: "msgs", asc: false},
+		costView:         "g",
+		port:             9999,
 	}
 
 	// Initialize peer storage
@@ -75,8 +79,9 @@ func (d *Dashboard) SetPort(port int) {
 }
 
 // GetLocalStats returns the local stats (without peer aggregation) for the HTTP API.
+// Uses atomic pointer so the HTTP server sees stats even though bubbletea copies the model.
 func (d *Dashboard) GetLocalStats() *data.Stats {
-	return d.localStats
+	return d.sharedLocalStats.Load()
 }
 
 func loadStats() tea.Msg {
@@ -100,6 +105,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case statsMsg:
 		d.localStats = msg
+		d.sharedLocalStats.Store((*data.Stats)(msg))
 		d.stats = msg
 		d.loading = false
 		// Fetch peers and merge
@@ -624,7 +630,7 @@ func (d Dashboard) viewProjects(w int) string {
 		colCost, "(c)ost"+si(so, "cost"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
-	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", tableMin)))
+	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colName+colSessions+colMessages+colTokens+colCost+6)))
 
 	showBar := w > tableMin+20
 	maxMsgs := 0
