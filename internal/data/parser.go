@@ -276,16 +276,20 @@ func aggregateProject(ps *ProjectSummary, s *Session) {
 }
 
 // LoadStats loads and aggregates all conversations.
-func LoadStats() (*Stats, error) {
+// NewStats creates an empty Stats ready for incremental loading.
+func NewStats() *Stats {
+	return &Stats{
+		ToolUsage: make(map[string]int),
+		Models:    make(map[string]int),
+	}
+}
+
+// LoadClaudeSessions loads Claude Code conversations into stats.
+func LoadClaudeSessions(stats *Stats) {
 	projectsDir := filepath.Join(claudeDir(), "projects")
 	entries, err := os.ReadDir(projectsDir)
 	if err != nil {
-		return nil, err
-	}
-
-	stats := &Stats{
-		ToolUsage: make(map[string]int),
-		Models:    make(map[string]int),
+		return
 	}
 
 	for _, entry := range entries {
@@ -316,42 +320,48 @@ func LoadStats() (*Stats, error) {
 		stats.Sessions = append(stats.Sessions, sessions...)
 		stats.Projects = append(stats.Projects, projSummary)
 	}
+}
 
-	// Load OpenCode and Codex
-	for _, loader := range []struct {
-		name string
-		fn   func() ([]Session, error)
-	}{
-		{"opencode", LoadOpenCodeSessions},
-		{"codex", LoadCodexSessions},
-		{"gemini", LoadGeminiSessions},
-	} {
-		extraSessions, err := loader.fn()
-		if err != nil || len(extraSessions) == 0 {
-			continue
-		}
-
-		// Aggregate by project
-		projMap := make(map[string]*ProjectSummary)
-		for i := range extraSessions {
-			s := &extraSessions[i]
-			aggregateSession(stats, s)
-
-			key := loader.name + "/" + s.Project
-			ps := projMap[key]
-			if ps == nil {
-				ps = &ProjectSummary{Name: s.Project + " (" + loader.name + ")"}
-				projMap[key] = ps
-			}
-			aggregateProject(ps, s)
-		}
-
-		stats.Sessions = append(stats.Sessions, extraSessions...)
-		for _, ps := range projMap {
-			stats.Projects = append(stats.Projects, *ps)
-		}
+// LoadExternalSource loads sessions from an external source (opencode, codex, gemini) into stats.
+func LoadExternalSource(stats *Stats, name string, loader func() ([]Session, error)) {
+	extraSessions, err := loader()
+	if err != nil || len(extraSessions) == 0 {
+		return
 	}
 
+	projMap := make(map[string]*ProjectSummary)
+	for i := range extraSessions {
+		s := &extraSessions[i]
+		aggregateSession(stats, s)
+
+		key := name + "/" + s.Project
+		ps := projMap[key]
+		if ps == nil {
+			ps = &ProjectSummary{Name: s.Project + " (" + name + ")"}
+			projMap[key] = ps
+		}
+		aggregateProject(ps, s)
+	}
+
+	stats.Sessions = append(stats.Sessions, extraSessions...)
+	for _, ps := range projMap {
+		stats.Projects = append(stats.Projects, *ps)
+	}
+}
+
+// LoadStats loads and aggregates all conversations.
+func LoadStats() (*Stats, error) {
+	stats := NewStats()
+	LoadClaudeSessions(stats)
+	LoadExternalSource(stats, "opencode", LoadOpenCodeSessions)
+	LoadExternalSource(stats, "codex", LoadCodexSessions)
+	LoadExternalSource(stats, "gemini", LoadGeminiSessions)
+	FinalizeStats(stats)
+	return stats, nil
+}
+
+// FinalizeStats computes derived fields (counters, sorts, daily costs) after all sessions are loaded.
+func FinalizeStats(stats *Stats) {
 	stats.TotalSessions = len(stats.Sessions)
 
 	// Temporal counters
@@ -446,7 +456,6 @@ func LoadStats() (*Stats, error) {
 	}
 
 	stats.LastUpdated = time.Now()
-	return stats, nil
 }
 
 func loadProjectSessions(projectDir string) ([]Session, error) {

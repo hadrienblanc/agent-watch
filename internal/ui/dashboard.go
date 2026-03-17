@@ -17,6 +17,13 @@ import (
 
 type statsMsg *data.Stats
 
+// loadStepMsg drives sequential loading: each step loads one source, updates the UI, then chains to the next.
+type loadStepMsg struct {
+	source string     // source about to be loaded (for display)
+	stats  *data.Stats // accumulated stats so far
+	step   int        // 0=init, 1=claude, 2=opencode, 3=codex, 4=gemini, 5=finalize
+}
+
 const totalTabs = 8
 
 type sortOrder struct {
@@ -33,7 +40,8 @@ type Dashboard struct {
 	height    int
 	tab       int // 0=overview, 1=sessions, 2=tools, 3=projects, 4=costs, 5=sources, 6=models, 7=network
 	scroll    int
-	loading   bool
+	loading       bool
+	loadingSource string
 	sortSessions sortOrder
 	sortTools    sortOrder
 	sortProjects sortOrder
@@ -84,17 +92,10 @@ func (d *Dashboard) GetLocalStats() *data.Stats {
 	return d.sharedLocalStats.Load()
 }
 
-func loadStats() tea.Msg {
-	stats, err := data.LoadStats()
-	if err != nil {
-		return statsMsg(nil)
-	}
-	return statsMsg(stats)
-}
-
-
 func (d Dashboard) Init() tea.Cmd {
-	return loadStats
+	return func() tea.Msg {
+		return loadStepMsg{source: "Claude", step: 1, stats: data.NewStats()}
+	}
 }
 
 func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -103,11 +104,38 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		d.width = msg.Width
 		d.height = msg.Height
 
+	case loadStepMsg:
+		d.loadingSource = msg.source
+		switch msg.step {
+		case 1: // Load Claude
+			return d, func() tea.Msg {
+				data.LoadClaudeSessions(msg.stats)
+				return loadStepMsg{source: "OpenCode", step: 2, stats: msg.stats}
+			}
+		case 2: // Load OpenCode
+			return d, func() tea.Msg {
+				data.LoadExternalSource(msg.stats, "opencode", data.LoadOpenCodeSessions)
+				return loadStepMsg{source: "Codex", step: 3, stats: msg.stats}
+			}
+		case 3: // Load Codex
+			return d, func() tea.Msg {
+				data.LoadExternalSource(msg.stats, "codex", data.LoadCodexSessions)
+				return loadStepMsg{source: "Gemini", step: 4, stats: msg.stats}
+			}
+		case 4: // Load Gemini
+			return d, func() tea.Msg {
+				data.LoadExternalSource(msg.stats, "gemini", data.LoadGeminiSessions)
+				data.FinalizeStats(msg.stats)
+				return statsMsg(msg.stats)
+			}
+		}
+
 	case statsMsg:
 		d.localStats = msg
 		d.sharedLocalStats.Store((*data.Stats)(msg))
 		d.stats = msg
 		d.loading = false
+		d.loadingSource = ""
 		// Fetch peers and merge
 		d.fetchPeers()
 
@@ -159,7 +187,9 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			d.scroll = 0
 		case "r":
 			d.loading = true
-			return d, loadStats
+			return d, func() tea.Msg {
+				return loadStepMsg{source: "Claude", step: 1, stats: data.NewStats()}
+			}
 		case "j", "down":
 			d.scroll++
 		case "k", "up":
@@ -182,11 +212,15 @@ func (d Dashboard) View() tea.View {
 	}
 
 	if d.loading {
+		loadMsg := "Loading conversations..."
+		if d.loadingSource != "" {
+			loadMsg = fmt.Sprintf("Loading %s...", d.loadingSource)
+		}
 		s := lipgloss.NewStyle().Padding(2, 4).Render(
 			lipgloss.JoinVertical(lipgloss.Left,
 				headerStyle.Render(" Claude Monitor "),
 				"",
-				labelStyle.Render("Loading conversations..."),
+				labelStyle.Render(loadMsg),
 			),
 		)
 		v := tea.NewView(s)
