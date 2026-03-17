@@ -80,7 +80,7 @@ type DayTokens struct {
 // Session résume une conversation.
 type Session struct {
 	ID        string
-	Source    string // "claude", "opencode", "codex"
+	Source    string // "claude", "opencode", "codex", "gemini"
 	Slug      string
 	Project   string
 	StartTime time.Time
@@ -311,6 +311,7 @@ func LoadStats() (*Stats, error) {
 	}{
 		{"opencode", LoadOpenCodeSessions},
 		{"codex", LoadCodexSessions},
+		{"gemini", LoadGeminiSessions},
 	} {
 		extraSessions, err := loader.fn()
 		if err != nil || len(extraSessions) == 0 {

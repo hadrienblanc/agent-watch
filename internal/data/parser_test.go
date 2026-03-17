@@ -124,6 +124,93 @@ func TestParseSession(t *testing.T) {
 	}
 }
 
+func TestParseGeminiSession(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "session-2026-03-17T15-49-test.json")
+
+	session := geminiSession{
+		SessionID:   "test-gemini-id",
+		StartTime:   "2026-03-17T15:49:23.734Z",
+		LastUpdated: "2026-03-17T15:50:00.000Z",
+		Messages: []geminiMessage{
+			{Type: "user", Timestamp: "2026-03-17T15:49:23.734Z"},
+			{
+				Type: "gemini", Timestamp: "2026-03-17T15:49:30.000Z",
+				Model: "gemini-3-flash-preview",
+				Tokens: &geminiTokens{Input: 6505, Output: 81, Cached: 100, Thoughts: 101, Total: 6787},
+				ToolCalls: []struct{ Name string `json:"name"` }{
+					{Name: "read_file"},
+					{Name: "list_files"},
+				},
+			},
+			{Type: "user", Timestamp: "2026-03-17T15:49:35.000Z"},
+			{
+				Type: "gemini", Timestamp: "2026-03-17T15:50:00.000Z",
+				Model: "gemini-3-flash-preview",
+				Tokens: &geminiTokens{Input: 8000, Output: 200, Total: 8200},
+			},
+		},
+	}
+
+	data, _ := json.Marshal(session)
+	os.WriteFile(f, data, 0644)
+
+	s, err := parseGeminiSession(f, "test-proj")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Source != "gemini" {
+		t.Errorf("source = %q, want gemini", s.Source)
+	}
+	if s.UserMessages != 2 {
+		t.Errorf("user messages = %d, want 2", s.UserMessages)
+	}
+	if s.AssistantMessages != 2 {
+		t.Errorf("assistant messages = %d, want 2", s.AssistantMessages)
+	}
+	if s.InputTokens != 14505 {
+		t.Errorf("input tokens = %d, want 14505", s.InputTokens)
+	}
+	if s.OutputTokens != 281 {
+		t.Errorf("output tokens = %d, want 281", s.OutputTokens)
+	}
+	if s.CacheReadTokens != 100 {
+		t.Errorf("cache read = %d, want 100", s.CacheReadTokens)
+	}
+	if s.ToolUses["read_file"] != 1 {
+		t.Errorf("read_file tool uses = %d, want 1", s.ToolUses["read_file"])
+	}
+	if s.ToolUses["list_files"] != 1 {
+		t.Errorf("list_files tool uses = %d, want 1", s.ToolUses["list_files"])
+	}
+	if s.Models["gemini-3-flash-preview"] != 2 {
+		t.Errorf("model count = %d, want 2", s.Models["gemini-3-flash-preview"])
+	}
+	if s.Project != "test-proj" {
+		t.Errorf("project = %q, want test-proj", s.Project)
+	}
+}
+
+func TestLoadGeminiSessions(t *testing.T) {
+	sessions, err := LoadGeminiSessions()
+	if err != nil {
+		t.Fatalf("LoadGeminiSessions() error: %v", err)
+	}
+	// On sait qu'il y a des sessions gemini sur cette machine
+	if len(sessions) == 0 {
+		t.Skip("no gemini sessions found")
+	}
+	for _, s := range sessions {
+		if s.Source != "gemini" {
+			t.Errorf("session %s source = %q, want gemini", s.ID, s.Source)
+		}
+		if len(s.Models) == 0 {
+			t.Errorf("session %s has no models", s.ID)
+		}
+	}
+	t.Logf("Found %d gemini sessions", len(sessions))
+}
+
 func TestLoadStatsFromReal(t *testing.T) {
 	stats, err := LoadStats()
 	if err != nil {
@@ -140,5 +227,17 @@ func TestLoadStatsFromReal(t *testing.T) {
 	}
 	if stats.ActiveModel == "" {
 		t.Error("expected an active model")
+	}
+
+	// Vérifier que les sources gemini sont incluses
+	hasGemini := false
+	for _, s := range stats.Sessions {
+		if s.Source == "gemini" {
+			hasGemini = true
+			break
+		}
+	}
+	if !hasGemini {
+		t.Error("expected gemini sessions in stats")
 	}
 }
