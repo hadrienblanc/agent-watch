@@ -289,7 +289,7 @@ func (d Dashboard) viewOverview(w int) string {
 	}
 	top := min(3, len(models))
 	for i, m := range models[:top] {
-		pct := float64(m.count) / float64(max(totalModelMsgs, 1)) * 100
+		pct := pct(m.count, totalModelMsgs)
 		label := fmt.Sprintf("#%d", i+1)
 		modelRows = append(modelRows, kv{label, fmt.Sprintf("%s  %s  %s",
 			cyanStyle.Render(m.name),
@@ -312,7 +312,7 @@ func (d Dashboard) viewOverview(w int) string {
 	for _, sess := range s.Sessions {
 		src := sess.Source
 		if src == "" {
-			src = "claude"
+			src = data.SourceClaude
 		}
 		se := srcMap[src]
 		if se == nil {
@@ -345,7 +345,7 @@ func (d Dashboard) viewOverview(w int) string {
 	srcTableRows = append(srcTableRows, tableHeaderStyle.Render(srcHeader))
 	srcTableRows = append(srcTableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colCost+8)))
 	for _, se := range srcs {
-		pct := float64(se.sessions) / float64(max(s.TotalSessions, 1)) * 100
+		pct := pct(se.sessions, s.TotalSessions)
 		bar := d.miniBar(pct, 15)
 		row := fmt.Sprintf("  %-*s %*d %*s %*s  %s",
 			colSrc, se.name,
@@ -511,7 +511,7 @@ func (d Dashboard) viewTools(w int) string {
 	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colTool+colCall+colPct+35)))
 
 	for _, t := range tools {
-		pct := float64(t.count) / float64(max(s.TotalToolUses, 1)) * 100
+		pct := pct(t.count, s.TotalToolUses)
 		bar := d.miniBar(pct, 30)
 		row := fmt.Sprintf("  %-*s %*s %*s  %s",
 			colTool, t.name,
@@ -923,7 +923,7 @@ func (d Dashboard) viewSources(w int) string {
 	for _, sess := range s.Sessions {
 		src := sess.Source
 		if src == "" {
-			src = "claude"
+			src = data.SourceClaude
 		}
 		sd := srcMap[src]
 		if sd == nil {
@@ -967,7 +967,7 @@ func (d Dashboard) viewSources(w int) string {
 	tableRows = append(tableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colIn+colOut+colCache+colCost+14)))
 
 	for _, sd := range srcs {
-		pct := float64(sd.cost) / float64(max(1, int(s.TotalCost))) * 100
+		pct := pct(int(sd.cost*100), int(s.TotalCost*100))
 		bar := d.miniBar(pct, 15)
 		row := fmt.Sprintf("  %-*s %*d %*s %*s %*s %*s %*s  %s",
 			colSrc, sd.name,
@@ -1009,7 +1009,7 @@ func (d Dashboard) viewModels(w int) string {
 	for _, sess := range s.Sessions {
 		src := sess.Source
 		if src == "" {
-			src = "claude"
+			src = data.SourceClaude
 		}
 		totalMsgs := 0
 		for _, c := range sess.Models {
@@ -1046,6 +1046,10 @@ func (d Dashboard) viewModels(w int) string {
 			less = a.source < b.source
 		case "msgs":
 			less = a.count < b.count
+		case "input":
+			less = a.input < b.input
+		case "output":
+			less = a.output < b.output
 		case "cout":
 			less = a.cost < b.cost
 		}
@@ -1071,8 +1075,8 @@ func (d Dashboard) viewModels(w int) string {
 		colModel, "(m)odèle"+si(so, "model"),
 		colSource, "(s)ource"+si(so, "source"),
 		colMsgs, "ms(g)s"+si(so, "msgs"),
-		colIn, "Input",
-		colOut, "Output",
+		colIn, "(i)nput"+si(so, "input"),
+		colOut, "(o)utput"+si(so, "output"),
 		colCost, "(c)oût"+si(so, "cout"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
@@ -1088,7 +1092,7 @@ func (d Dashboard) viewModels(w int) string {
 		if len(name) > colModel-2 {
 			name = name[:colModel-2]
 		}
-		pct := float64(md.count) / float64(max(totalMsgs, 1)) * 100
+		pct := pct(md.count, totalMsgs)
 		bar := d.miniBar(pct, 15)
 
 		row := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s  %s",
@@ -1150,9 +1154,9 @@ func (d *Dashboard) handleSortKey(key string) {
 		}[key]; ok {
 			d.toggleSort(&d.sortProjects, col)
 		}
-	case 6: // Modèles: m=model, s=source, g=msgs, c=coût
+	case 6: // Modèles: m=model, s=source, g=msgs, i=input, o=output, c=coût
 		if col, ok := map[string]string{
-			"m": "model", "s": "source", "g": "msgs", "c": "cout",
+			"m": "model", "s": "source", "g": "msgs", "i": "input", "o": "output", "c": "cout",
 		}[key]; ok {
 			d.toggleSort(&d.sortModels, col)
 		}
@@ -1265,6 +1269,13 @@ func (d Dashboard) colorCacheRate(pct float64) string {
 		return warnValStyle.Render(s)
 	}
 	return errValStyle.Render(s)
+}
+
+func pct(part, total int) float64 {
+	if total == 0 {
+		return 0
+	}
+	return float64(part) / float64(total) * 100
 }
 
 func fmtNum(n int) string {

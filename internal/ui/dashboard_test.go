@@ -250,3 +250,22 @@ func TestFmtDuration(t *testing.T) {
 		}
 	}
 }
+
+func TestPct(t *testing.T) {
+	tests := []struct {
+		part, total int
+		want        float64
+	}{
+		{50, 100, 50.0},
+		{1, 3, 100.0 / 3.0},
+		{0, 100, 0},
+		{0, 0, 0},
+		{100, 100, 100.0},
+	}
+	for _, tt := range tests {
+		got := pct(tt.part, tt.total)
+		if diff := got - tt.want; diff > 0.001 || diff < -0.001 {
+			t.Errorf("pct(%d, %d) = %f, want %f", tt.part, tt.total, got, tt.want)
+		}
+	}
+}
