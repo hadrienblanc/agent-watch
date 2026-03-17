@@ -280,23 +280,29 @@ func (d Dashboard) viewOverview(w int) string {
 	)
 
 	// Modèles
-	var modelRows []kv
 	type modelEntry struct {
 		name  string
 		count int
 	}
 	var models []modelEntry
+	totalModelMsgs := 0
 	for m, c := range s.Models {
 		models = append(models, modelEntry{m, c})
+		totalModelMsgs += c
 	}
 	sort.Slice(models, func(i, j int) bool { return models[i].count > models[j].count })
-	for _, m := range models {
-		pct := float64(m.count) / float64(max(s.TotalMessages, 1)) * 100
-		bar := d.miniBar(pct, 20)
-		modelRows = append(modelRows, kv{m.name, fmt.Sprintf("%s %s %s",
+
+	modelRows := []kv{
+		kv{"Total", valueStyle.Render(fmt.Sprintf("%d modèles", len(models)))},
+		kv{"", ""},
+	}
+	for i, m := range models {
+		pct := float64(m.count) / float64(max(totalModelMsgs, 1)) * 100
+		label := fmt.Sprintf("#%d", i+1)
+		modelRows = append(modelRows, kv{label, fmt.Sprintf("%s  %s  %s",
+			cyanStyle.Render(m.name),
 			valueStyle.Render(fmtNum(m.count)),
 			labelStyle.Render(fmt.Sprintf("(%.0f%%)", pct)),
-			bar,
 		)})
 	}
 	modelsPanel := d.panel("Modèles", halfW, modelRows...)
