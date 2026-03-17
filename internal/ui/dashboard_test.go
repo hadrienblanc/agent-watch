@@ -56,6 +56,15 @@ func fakeStats() *data.Stats {
 				StartTime: time.Now().Add(-1 * time.Hour),
 				EndTime:   time.Now(),
 			},
+			{
+				ID: "s3", Source: "gemini", Slug: "gemini-session", Project: "gemini-proj",
+				UserMessages: 3, AssistantMessages: 4,
+				InputTokens: 12000, OutputTokens: 2000,
+				Models:   map[string]int{"gemini-3-flash-preview": 4},
+				ToolUses: map[string]int{"read_file": 2},
+				StartTime: time.Now().Add(-45 * time.Minute),
+				EndTime:   time.Now(),
+			},
 		},
 		Projects: []data.ProjectSummary{
 			{Name: "test-proj", Sessions: 3, Messages: 80, Tokens: 50000, Cost: 1.83},
@@ -187,6 +196,9 @@ func TestDashboardViewTabs(t *testing.T) {
 	if !strings.Contains(view.Content, "opencode") {
 		t.Error("sources tab should contain 'opencode'")
 	}
+	if !strings.Contains(view.Content, "gemini") {
+		t.Error("sources tab should contain 'gemini'")
+	}
 	if !strings.Contains(view.Content, "Comparatif") {
 		t.Error("sources tab should contain 'Comparatif'")
 	}
@@ -199,6 +211,9 @@ func TestDashboardViewTabs(t *testing.T) {
 	}
 	if !strings.Contains(view.Content, "glm-5") {
 		t.Error("models tab should contain 'glm-5'")
+	}
+	if !strings.Contains(view.Content, "gemini-3-flash") {
+		t.Error("models tab should contain 'gemini-3-flash'")
 	}
 }
 
