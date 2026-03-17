@@ -17,6 +17,7 @@ import (
 	"golang.org/x/image/math/fixed"
 
 	"claude_monitor/internal/data"
+	"claude_monitor/internal/peer"
 	"claude_monitor/internal/ui"
 )
 
@@ -429,75 +430,83 @@ func richFakeStats() *data.Stats {
 			ID: "abc123", Source: "claude", Slug: "refactor-auth-module", Project: "webapp-api",
 			UserMessages: 45, AssistantMessages: 52,
 			InputTokens: 185000, OutputTokens: 92000, CacheReadTokens: 45000,
-			ToolUses:  map[string]int{"Read": 18, "Edit": 12, "Bash": 8, "Grep": 5},
-			ToolErrors: 1,
-			Models:    map[string]int{"claude-opus-4-6": 52},
-			StartTime: now.Add(-2 * time.Hour), EndTime: now.Add(-15 * time.Minute),
-			Cost: 4.82,
+			ToolUses:      map[string]int{"Read": 18, "Edit": 12, "Bash": 8, "Grep": 5},
+			ToolErrors:    1,
+			Models:        map[string]int{"claude-opus-4-6": 52},
+			StartTime:     now.Add(-2 * time.Hour), EndTime: now.Add(-15 * time.Minute),
+			TotalDuration: 1*time.Hour + 45*time.Minute,
+			Cost:          4.82,
 		},
 		{
 			ID: "def456", Source: "claude", Slug: "fix-payment-webhook", Project: "payment-service",
 			UserMessages: 23, AssistantMessages: 31,
 			InputTokens: 95000, OutputTokens: 48000, CacheReadTokens: 28000,
-			ToolUses:  map[string]int{"Read": 10, "Bash": 6, "Edit": 4, "Grep": 3, "Write": 2},
-			Models:    map[string]int{"claude-sonnet-4-6": 31},
-			StartTime: now.Add(-90 * time.Minute), EndTime: now.Add(-30 * time.Minute),
-			Cost: 1.45,
+			ToolUses:      map[string]int{"Read": 10, "Bash": 6, "Edit": 4, "Grep": 3, "Write": 2},
+			Models:        map[string]int{"claude-sonnet-4-6": 31},
+			StartTime:     now.Add(-90 * time.Minute), EndTime: now.Add(-30 * time.Minute),
+			TotalDuration: 58 * time.Minute,
+			Cost:          1.45,
 		},
 		{
 			ID: "ghi789", Source: "opencode", Slug: "migrate-database-v3", Project: "webapp-api",
 			UserMessages: 18, AssistantMessages: 22,
 			InputTokens: 72000, OutputTokens: 35000,
-			ToolUses:  map[string]int{"read_file": 8, "write_file": 5, "bash": 4},
-			Models:    map[string]int{"glm-5": 22},
-			StartTime: now.Add(-3 * time.Hour), EndTime: now.Add(-2 * time.Hour),
-			Cost: 0.38,
+			ToolUses:      map[string]int{"read_file": 8, "write_file": 5, "bash": 4},
+			Models:        map[string]int{"glm-5": 22},
+			StartTime:     now.Add(-3 * time.Hour), EndTime: now.Add(-2 * time.Hour),
+			TotalDuration: 42 * time.Minute,
+			Cost:          0.38,
 		},
 		{
 			ID: "jkl012", Source: "claude", Slug: "add-monitoring-dash", Project: "infra-tools",
 			UserMessages: 35, AssistantMessages: 41,
 			InputTokens: 142000, OutputTokens: 78000, CacheReadTokens: 52000,
-			ToolUses:  map[string]int{"Read": 15, "Edit": 10, "Write": 8, "Bash": 6, "Glob": 4},
-			ToolErrors: 2,
-			Models:    map[string]int{"claude-opus-4-6": 41},
-			StartTime: now.Add(-5 * time.Hour), EndTime: now.Add(-3 * time.Hour),
-			Cost: 3.91,
+			ToolUses:      map[string]int{"Read": 15, "Edit": 10, "Write": 8, "Bash": 6, "Glob": 4},
+			ToolErrors:    2,
+			Models:        map[string]int{"claude-opus-4-6": 41},
+			StartTime:     now.Add(-5 * time.Hour), EndTime: now.Add(-3 * time.Hour),
+			TotalDuration: 1*time.Hour + 52*time.Minute,
+			Cost:          3.91,
 		},
 		{
 			ID: "mno345", Source: "gemini", Slug: "review-pr-187", Project: "webapp-api",
 			UserMessages: 8, AssistantMessages: 10,
 			InputTokens: 45000, OutputTokens: 12000,
-			ToolUses:  map[string]int{"read_file": 6},
-			Models:    map[string]int{"gemini-3-flash-preview": 10},
-			StartTime: now.Add(-45 * time.Minute), EndTime: now.Add(-20 * time.Minute),
-			Cost: 0.08,
+			ToolUses:      map[string]int{"read_file": 6},
+			Models:        map[string]int{"gemini-3-flash-preview": 10},
+			StartTime:     now.Add(-45 * time.Minute), EndTime: now.Add(-20 * time.Minute),
+			TotalDuration: 12 * time.Minute,
+			Cost:          0.08,
 		},
 		{
 			ID: "pqr678", Source: "claude", Slug: "update-api-docs", Project: "webapp-api",
 			UserMessages: 12, AssistantMessages: 15,
 			InputTokens: 55000, OutputTokens: 32000, CacheReadTokens: 18000,
-			ToolUses:  map[string]int{"Read": 8, "Edit": 5, "Grep": 3},
-			Models:    map[string]int{"claude-sonnet-4-6": 15},
-			StartTime: now.Add(-6 * time.Hour), EndTime: now.Add(-5 * time.Hour),
-			Cost: 0.87,
+			ToolUses:      map[string]int{"Read": 8, "Edit": 5, "Grep": 3},
+			Models:        map[string]int{"claude-sonnet-4-6": 15},
+			StartTime:     now.Add(-6 * time.Hour), EndTime: now.Add(-5 * time.Hour),
+			TotalDuration: 35 * time.Minute,
+			Cost:          0.87,
 		},
 		{
 			ID: "stu901", Source: "opencode", Slug: "optimize-queries", Project: "payment-service",
 			UserMessages: 28, AssistantMessages: 33,
 			InputTokens: 98000, OutputTokens: 52000,
-			ToolUses:  map[string]int{"read_file": 12, "bash": 8, "write_file": 6},
-			Models:    map[string]int{"glm-5": 33},
-			StartTime: now.Add(-4 * time.Hour), EndTime: now.Add(-150 * time.Minute),
-			Cost: 0.62,
+			ToolUses:      map[string]int{"read_file": 12, "bash": 8, "write_file": 6},
+			Models:        map[string]int{"glm-5": 33},
+			StartTime:     now.Add(-4 * time.Hour), EndTime: now.Add(-150 * time.Minute),
+			TotalDuration: 1*time.Hour + 15*time.Minute,
+			Cost:          0.62,
 		},
 		{
 			ID: "vwx234", Source: "claude", Slug: "implement-rate-limit", Project: "webapp-api",
 			UserMessages: 42, AssistantMessages: 48,
 			InputTokens: 168000, OutputTokens: 88000, CacheReadTokens: 62000,
-			ToolUses:  map[string]int{"Read": 20, "Edit": 14, "Bash": 10, "Grep": 6, "Write": 3, "Glob": 2},
-			Models:    map[string]int{"claude-opus-4-6": 48},
-			StartTime: now.Add(-24 * time.Hour), EndTime: now.Add(-22 * time.Hour),
-			Cost: 4.15,
+			ToolUses:      map[string]int{"Read": 20, "Edit": 14, "Bash": 10, "Grep": 6, "Write": 3, "Glob": 2},
+			Models:        map[string]int{"claude-opus-4-6": 48},
+			StartTime:     now.Add(-24 * time.Hour), EndTime: now.Add(-22 * time.Hour),
+			TotalDuration: 2*time.Hour + 8*time.Minute,
+			Cost:          4.15,
 		},
 	}
 
@@ -614,16 +623,55 @@ func main() {
 
 	stats := richFakeStats()
 
-	tabs := []struct {
-		tab  int
-		name string
-	}{
-		{0, "screenshot_overview.png"},
-		{1, "screenshot_sessions.png"},
+	// Create output directory
+	os.MkdirAll("screenshots", 0o755)
+
+	// Fake peers for network tab
+	fakePeers := []peer.PeerStatus{
+		{
+			Address: "192.168.1.10:9999", Online: true,
+			LastSeen: time.Now().Add(-2 * time.Minute),
+			Stats: &data.Stats{
+				TotalSessions: 12, TotalMessages: 340,
+				TotalInputTokens: 420000, TotalOutputTokens: 210000,
+				TotalCost: 8.42,
+			},
+		},
+		{
+			Address: "192.168.1.25:9999", Online: true,
+			LastSeen: time.Now().Add(-5 * time.Minute),
+			Stats: &data.Stats{
+				TotalSessions: 6, TotalMessages: 95,
+				TotalInputTokens: 180000, TotalOutputTokens: 85000,
+				TotalCost: 3.15,
+			},
+		},
+		{
+			Address:   "192.168.1.30:9999", Online: false,
+			LastError: "connection refused",
+		},
+	}
+
+	type tabCfg struct {
+		tab      int
+		name     string
+		costView string
+		peers    []peer.PeerStatus
+	}
+
+	tabs := []tabCfg{
+		{0, "screenshots/01_overview.png", "g", nil},
+		{1, "screenshots/02_sessions.png", "g", nil},
+		{2, "screenshots/03_outils.png", "g", nil},
+		{3, "screenshots/04_projets.png", "g", nil},
+		{4, "screenshots/05_couts.png", "g", nil},
+		{5, "screenshots/06_sources.png", "g", nil},
+		{6, "screenshots/07_modeles.png", "g", nil},
+		{7, "screenshots/08_reseau.png", "g", fakePeers},
 	}
 
 	for _, cfg := range tabs {
-		ansiStr := ui.RenderScreenshot(cfg.tab, stats, 140, 45)
+		ansiStr := ui.RenderScreenshotOpts(cfg.tab, stats, 140, 45, cfg.costView, cfg.peers)
 		grid, maxW := parseANSI(ansiStr)
 		img := renderPNG(grid, maxW, regFace, boldFace)
 
