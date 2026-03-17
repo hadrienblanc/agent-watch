@@ -117,8 +117,8 @@ func TestDashboardTabNavigation(t *testing.T) {
 	d.tab = 0
 	model, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	d = model.(Dashboard)
-	if d.tab != 6 {
-		t.Errorf("expected tab 6 (wrap left), got %d", d.tab)
+	if d.tab != 7 {
+		t.Errorf("expected tab 7 (wrap left), got %d", d.tab)
 	}
 }
 
@@ -1090,5 +1090,54 @@ func TestCostsSortOrder(t *testing.T) {
 	viewSess := d.viewCostTable(120, stats.DailyCosts)
 	if !strings.Contains(viewSess, "essions") {
 		t.Error("Costs table should contain 'essions' column header")
+	}
+}
+
+func TestViewNetwork(t *testing.T) {
+	d := NewDashboard()
+	d.localStats = fakeStats()
+	d.stats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+	d.tab = 7
+
+	view := d.View()
+	content := view.Content
+
+	// Check panel headers
+	if !strings.Contains(content, "Cette machine") {
+		t.Error("viewNetwork should contain 'Cette machine' panel")
+	}
+	if !strings.Contains(content, "Total agrg") && !strings.Contains(content, "Total agrégé") {
+		t.Error("viewNetwork should contain 'Total agrégé' panel")
+	}
+	if !strings.Contains(content, "Machines distantes") {
+		t.Error("viewNetwork should contain 'Machines distantes' panel")
+	}
+
+	// Check for local stats
+	if !strings.Contains(content, "Sessions locales") {
+		t.Error("viewNetwork should contain 'Sessions locales'")
+	}
+
+	// Check for no peers message
+	if !strings.Contains(content, "Aucun peer") {
+		t.Error("viewNetwork should show 'Aucun peer configuré' when no peers added")
+	}
+}
+
+func TestNetworkTabNavigation(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+
+	// Tab 8 should navigate to network tab (index 7)
+	model, _ := d.Update(tea.KeyPressMsg{Code: '8', Text: "8"})
+	d = model.(Dashboard)
+	if d.tab != 7 {
+		t.Errorf("expected tab 7 for network, got %d", d.tab)
 	}
 }

@@ -2,11 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"net"
 	"sort"
 	"strings"
 	"time"
 
 	"claude_monitor/internal/data"
+	"claude_monitor/internal/peer"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -14,7 +16,7 @@ import (
 
 type statsMsg *data.Stats
 
-const totalTabs = 7
+const totalTabs = 8
 
 type sortOrder struct {
 	col string
@@ -22,22 +24,32 @@ type sortOrder struct {
 }
 
 type Dashboard struct {
-	stats  *data.Stats
-	width  int
-	height int
-	tab    int // 0=overview, 1=sessions, 2=tools, 3=projects
-	scroll int
-	loading bool
+	stats     *data.Stats
+	localStats *data.Stats // Stats without peer aggregation
+	width     int
+	height    int
+	tab       int // 0=overview, 1=sessions, 2=tools, 3=projects, 4=costs, 5=sources, 6=models, 7=network
+	scroll    int
+	loading   bool
 	sortSessions sortOrder
 	sortTools    sortOrder
 	sortProjects sortOrder
 	sortCosts    sortOrder
 	sortModels   sortOrder
 	costView     string // "g" = graph, "t" = table
+
+	// Network tab
+	peerStorage  *peer.Storage
+	peerStatuses []peer.PeerStatus
+	myIP         string
+	port         int
+	inputMode    bool
+	inputBuffer  string
+	inputPrompt  string
 }
 
 func NewDashboard() Dashboard {
-	return Dashboard{
+	d := Dashboard{
 		loading:      true,
 		sortSessions: sortOrder{col: "m", asc: false},
 		sortTools:    sortOrder{col: "a", asc: false},
@@ -45,7 +57,28 @@ func NewDashboard() Dashboard {
 		sortCosts:    sortOrder{col: "date", asc: false},
 		sortModels:   sortOrder{col: "msgs", asc: false},
 		costView:     "g",
+		port:         9999,
 	}
+
+	// Initialize peer storage
+	if storage, err := peer.NewStorage(); err == nil {
+		d.peerStorage = storage
+	}
+
+	// Detect local IP
+	d.myIP = getLocalIP()
+
+	return d
+}
+
+// SetPort sets the HTTP server port.
+func (d *Dashboard) SetPort(port int) {
+	d.port = port
+}
+
+// GetLocalStats returns the local stats (without peer aggregation) for the HTTP API.
+func (d *Dashboard) GetLocalStats() *data.Stats {
+	return d.localStats
 }
 
 func loadStats() tea.Msg {
@@ -68,12 +101,27 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		d.height = msg.Height
 
 	case statsMsg:
+		d.localStats = msg
 		d.stats = msg
 		d.loading = false
+		// Fetch peers and merge
+		d.fetchPeers()
 
 	case tea.KeyPressMsg:
+		// Handle input mode first
+		if d.inputMode {
+			return d.handleInput(msg.String())
+		}
+
 		switch msg.String() {
-		case "ctrl+c", "q", "escape":
+		case "ctrl+c", "q":
+			return d, tea.Quit
+		case "escape":
+			if d.inputMode {
+				d.inputMode = false
+				d.inputBuffer = ""
+				return d, nil
+			}
 			return d, tea.Quit
 		case "1":
 			d.tab = 0
@@ -95,6 +143,9 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			d.scroll = 0
 		case "7":
 			d.tab = 6
+			d.scroll = 0
+		case "8":
+			d.tab = 7
 			d.scroll = 0
 		case "tab", "right":
 			d.tab = (d.tab + 1) % totalTabs
@@ -169,6 +220,8 @@ func (d Dashboard) View() tea.View {
 		content = d.viewSources(w)
 	case 6:
 		content = d.viewModels(w)
+	case 7:
+		content = d.viewNetwork(w)
 	}
 
 	status := d.viewStatus(w)
@@ -189,7 +242,7 @@ func (d Dashboard) View() tea.View {
 }
 
 func (d Dashboard) viewTabs() string {
-	tabs := []string{"1:Overview", "2:Sessions", "3:Outils", "4:Projets", "5:Coûts", "6:Sources", "7:Modèles"}
+	tabs := []string{"1:Overview", "2:Sessions", "3:Outils", "4:Projets", "5:Coûts", "6:Sources", "7:Modèles", "8:Réseau"}
 	var parts []string
 	for i, t := range tabs {
 		if i == d.tab {
@@ -1095,6 +1148,168 @@ func (d Dashboard) viewModels(w int) string {
 	)
 }
 
+// --- Tab 7: Réseau ---
+
+func (d Dashboard) viewNetwork(w int) string {
+	// My info panel
+	myInfo := d.panel("Cette machine", (w-2)/2,
+		kv{"Adresse", cyanStyle.Render(fmt.Sprintf("%s:%d", d.myIP, d.port))},
+		kv{"Sessions locales", valueStyle.Render(fmt.Sprintf("%d", d.localStats.TotalSessions))},
+		kv{"Tokens locaux", valueStyle.Render(fmtNum(d.localStats.TotalInputTokens+d.localStats.TotalOutputTokens))},
+		kv{"Coût local", orangeStyle.Render(fmt.Sprintf("$%.2f", d.localStats.TotalCost))},
+	)
+
+	// Aggregated info panel
+	aggSessions := 0
+	aggTokens := 0
+	aggCost := 0.0
+	if d.stats != nil {
+		aggSessions = d.stats.TotalSessions
+		aggTokens = d.stats.TotalInputTokens + d.stats.TotalOutputTokens
+		aggCost = d.stats.TotalCost
+	}
+	aggInfo := d.panel("Total agrégé", (w-2)/2,
+		kv{"Sessions", bigNumStyle.Render(fmt.Sprintf("%d", aggSessions))},
+		kv{"Tokens", valueStyle.Render(fmtNum(aggTokens))},
+		kv{"Coût", orangeStyle.Render(fmt.Sprintf("$%.2f", aggCost))},
+	)
+
+	topRow := lipgloss.JoinHorizontal(lipgloss.Top, myInfo, " ", aggInfo)
+
+	// Peers list
+	var peerRows []string
+	colAddr := 22
+	colStatus := 10
+	colSessions := 10
+	colTokens := 12
+
+	header := fmt.Sprintf("  %-*s %-*s %*s %*s",
+		colAddr, "Adresse",
+		colStatus, "Statut",
+		colSessions, "Sessions",
+		colTokens, "Tokens",
+	)
+	peerRows = append(peerRows, tableHeaderStyle.Render(header))
+	peerRows = append(peerRows, labelStyle.Render("  "+strings.Repeat("─", colAddr+colStatus+colSessions+colTokens+6)))
+
+	if len(d.peerStatuses) == 0 {
+		peerRows = append(peerRows, labelStyle.Render("  Aucun peer configuré. Appuyez sur 'a' pour ajouter."))
+	} else {
+		for _, ps := range d.peerStatuses {
+			status := errValStyle.Render("offline")
+			sessions := "-"
+			tokens := "-"
+
+			if ps.Online {
+				status = bigNumStyle.Render("online")
+				if ps.Stats != nil {
+					sessions = fmt.Sprintf("%d", ps.Stats.TotalSessions)
+					tokens = fmtNum(ps.Stats.TotalInputTokens + ps.Stats.TotalOutputTokens)
+				}
+			}
+
+			row := fmt.Sprintf("  %-*s %-*s %*s %*s",
+				colAddr, ps.Address,
+				colStatus, status,
+				colSessions, sessions,
+				colTokens, tokens,
+			)
+			peerRows = append(peerRows, row)
+
+			if ps.LastError != "" {
+				peerRows = append(peerRows, labelStyle.Render(fmt.Sprintf("    └─ %s", ps.LastError)))
+			}
+		}
+	}
+
+	peersPanel := panelStyle.Width(w).Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			panelTitleStyle.Render("Machines distantes"),
+			strings.Join(peerRows, "\n"),
+		),
+	)
+
+	// Input modal if active
+	if d.inputMode {
+		inputBox := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(purple).
+			Padding(1, 2).
+			Render(fmt.Sprintf("%s: %s█", d.inputPrompt, d.inputBuffer))
+
+		overlay := lipgloss.Place(w, 10,
+			lipgloss.Center, lipgloss.Center,
+			inputBox,
+		)
+		return lipgloss.JoinVertical(lipgloss.Left, topRow, "", peersPanel, "", overlay)
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, topRow, "", peersPanel)
+}
+
+// handleInput processes keyboard input in input mode.
+func (d *Dashboard) handleInput(key string) (tea.Model, tea.Cmd) {
+	switch key {
+	case "enter":
+		if d.inputBuffer != "" && d.peerStorage != nil {
+			d.peerStorage.Add(d.inputBuffer)
+			d.peerStatuses = append(d.peerStatuses, peer.PeerStatus{
+				Address: d.inputBuffer,
+				Online:  false,
+			})
+		}
+		d.inputMode = false
+		d.inputBuffer = ""
+	case "backspace":
+		if len(d.inputBuffer) > 0 {
+			d.inputBuffer = d.inputBuffer[:len(d.inputBuffer)-1]
+		}
+	case "escape":
+		d.inputMode = false
+		d.inputBuffer = ""
+	default:
+		// Only accept printable characters
+		if len(key) == 1 && key[0] >= 32 && key[0] < 127 {
+			d.inputBuffer += key
+		}
+	}
+	return d, nil
+}
+
+// fetchPeers retrieves stats from all configured peers.
+func (d *Dashboard) fetchPeers() {
+	if d.peerStorage == nil || d.localStats == nil {
+		return
+	}
+
+	peers := d.peerStorage.List()
+	d.peerStatuses = make([]peer.PeerStatus, 0, len(peers))
+
+	// Start with local stats
+	merged := *d.localStats
+
+	for _, addr := range peers {
+		ps := peer.PeerStatus{
+			Address: addr,
+		}
+
+		stats, err := peer.FetchPeer(addr)
+		if err != nil {
+			ps.Online = false
+			ps.LastError = err.Error()
+		} else {
+			ps.Online = true
+			ps.Stats = stats
+			ps.LastSeen = time.Now()
+			merged.Merge(stats)
+		}
+
+		d.peerStatuses = append(d.peerStatuses, ps)
+	}
+
+	d.stats = &merged
+}
+
 // --- Status ---
 
 func (d Dashboard) viewStatus(w int) string {
@@ -1102,6 +1317,16 @@ func (d Dashboard) viewStatus(w int) string {
 	helpText := "◀ ▶/tab: onglets  •  j/k: défiler  •  r: recharger  •  q: quitter"
 	if d.tab == 4 {
 		helpText = "◀ ▶/tab: onglets  •  g: graphique  •  t: tableau  •  j/k: défiler  •  q: quitter"
+	}
+	if d.tab == 7 {
+		online := 0
+		for _, ps := range d.peerStatuses {
+			if ps.Online {
+				online++
+			}
+		}
+		left = statusStyle.Render(fmt.Sprintf("Mois: %s:%d  •  Peers: %d/%d", d.myIP, d.port, online, len(d.peerStatuses)))
+		helpText = "a: ajouter  •  f: fetch  •  j/k: défiler  •  q: quitter"
 	}
 	right := helpStyle.Render(helpText)
 	gap := w - lipgloss.Width(left) - lipgloss.Width(right)
@@ -1148,6 +1373,14 @@ func (d *Dashboard) handleSortKey(key string) {
 			"d": "date", "s": "sessions", "m": "messages", "i": "input", "o": "output", "c": "cout",
 		}[key]; ok {
 			d.toggleSort(&d.sortCosts, col)
+		}
+	case 7: // Réseau: a=ajouter, f=fetch
+		if key == "a" {
+			d.inputMode = true
+			d.inputBuffer = ""
+			d.inputPrompt = "Adresse IP:port"
+		} else if key == "f" {
+			d.fetchPeers()
 		}
 	}
 }
@@ -1303,4 +1536,17 @@ func truncate(s string, maxLen int) string {
 // formatCost formats a cost as a dollar string.
 func formatCost(c float64) string {
 	return fmt.Sprintf("$%.2f", c)
+}
+
+// getLocalIP returns the preferred local IP address.
+func getLocalIP() string {
+	// Try to connect to a public IP to determine local address
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "127.0.0.1"
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP.String()
 }
