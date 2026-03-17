@@ -21,7 +21,7 @@ type PeerStatus struct {
 // FetchPeer retrieves stats from a remote peer via HTTP.
 func FetchPeer(address string) (*data.Stats, error) {
 	client := &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	url := fmt.Sprintf("http://%s/api/stats", address)

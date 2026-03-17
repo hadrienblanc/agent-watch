@@ -19,9 +19,15 @@ type statsMsg *data.Stats
 
 // loadStepMsg drives sequential loading: each step loads one source, updates the UI, then chains to the next.
 type loadStepMsg struct {
-	source string     // source about to be loaded (for display)
+	source string      // source about to be loaded (for display)
 	stats  *data.Stats // accumulated stats so far
-	step   int        // 0=init, 1=claude, 2=opencode, 3=codex, 4=gemini, 5=finalize
+	step   int         // 0=init, 1=claude, 2=opencode, 3=codex, 4=gemini, 5=finalize
+}
+
+// peerResultMsg is returned when async peer fetching completes.
+type peerResultMsg struct {
+	statuses []peer.PeerStatus
+	merged   *data.Stats
 }
 
 const totalTabs = 8
@@ -50,13 +56,14 @@ type Dashboard struct {
 	costView     string // "g" = graph, "t" = table
 
 	// Network tab
-	peerStorage  *peer.Storage
-	peerStatuses []peer.PeerStatus
-	myIP         string
-	port         int
-	inputMode    bool
-	inputBuffer  string
-	inputPrompt  string
+	peerStorage   *peer.Storage
+	peerStatuses  []peer.PeerStatus
+	fetchingPeers bool
+	myIP          string
+	port          int
+	inputMode     bool
+	inputBuffer   string
+	inputPrompt   string
 }
 
 func NewDashboard() Dashboard {
@@ -136,8 +143,15 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		d.stats = msg
 		d.loading = false
 		d.loadingSource = ""
-		// Fetch peers and merge
-		d.fetchPeers()
+		// Fetch peers and merge asynchronously
+		return d, d.fetchPeersCmd()
+
+	case peerResultMsg:
+		d.fetchingPeers = false
+		d.peerStatuses = msg.statuses
+		if msg.merged != nil {
+			d.stats = msg.merged
+		}
 
 	case tea.KeyPressMsg:
 		// Handle input mode first
@@ -195,6 +209,17 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "k", "up":
 			if d.scroll > 0 {
 				d.scroll--
+			}
+		case "f":
+			if d.tab == 7 {
+				return d, d.fetchPeersCmd()
+			}
+			d.handleSortKey(msg.String())
+		case "a":
+			if d.tab == 7 {
+				d.inputMode = true
+				d.inputBuffer = ""
+				d.inputPrompt = "IP:port address"
 			}
 		default:
 			d.handleSortKey(msg.String())
@@ -1230,8 +1255,12 @@ func (d Dashboard) viewNetwork(w int) string {
 	peerRows = append(peerRows, tableHeaderStyle.Render(header))
 	peerRows = append(peerRows, labelStyle.Render("  "+strings.Repeat("─", colAddr+colStatus+colSessions+colTokens+6)))
 
-	if len(d.peerStatuses) == 0 {
+	if d.fetchingPeers {
+		peerRows = append(peerRows, warnValStyle.Render("  Fetching peers..."))
+	} else if len(d.peerStatuses) == 0 && len(d.peerStorage.List()) == 0 {
 		peerRows = append(peerRows, labelStyle.Render("  No peers configured. Press 'a' to add."))
+	} else if len(d.peerStatuses) == 0 {
+		peerRows = append(peerRows, labelStyle.Render("  Press 'f' to fetch peers."))
 	} else {
 		for _, ps := range d.peerStatuses {
 			status := errValStyle.Render("offline")
@@ -1294,7 +1323,7 @@ func (d *Dashboard) handleInput(key string) (tea.Model, tea.Cmd) {
 		}
 		d.inputMode = false
 		d.inputBuffer = ""
-		d.fetchPeers()
+		return d, d.fetchPeersCmd()
 	case "backspace":
 		if len(d.inputBuffer) > 0 {
 			d.inputBuffer = d.inputBuffer[:len(d.inputBuffer)-1]
@@ -1311,38 +1340,45 @@ func (d *Dashboard) handleInput(key string) (tea.Model, tea.Cmd) {
 	return d, nil
 }
 
-// fetchPeers retrieves stats from all configured peers.
-func (d *Dashboard) fetchPeers() {
+// fetchPeersCmd returns a tea.Cmd that fetches peer stats asynchronously.
+func (d *Dashboard) fetchPeersCmd() tea.Cmd {
 	if d.peerStorage == nil || d.localStats == nil {
-		return
+		return nil
 	}
 
 	peers := d.peerStorage.List()
-	d.peerStatuses = make([]peer.PeerStatus, 0, len(peers))
-
-	// Start with local stats
-	merged := *d.localStats
-
-	for _, addr := range peers {
-		ps := peer.PeerStatus{
-			Address: addr,
-		}
-
-		stats, err := peer.FetchPeer(addr)
-		if err != nil {
-			ps.Online = false
-			ps.LastError = err.Error()
-		} else {
-			ps.Online = true
-			ps.Stats = stats
-			ps.LastSeen = time.Now()
-			merged.Merge(stats)
-		}
-
-		d.peerStatuses = append(d.peerStatuses, ps)
+	if len(peers) == 0 {
+		return nil
 	}
 
-	d.stats = &merged
+	d.fetchingPeers = true
+	localStats := d.localStats
+
+	return func() tea.Msg {
+		merged := *localStats
+		statuses := make([]peer.PeerStatus, 0, len(peers))
+
+		for _, addr := range peers {
+			ps := peer.PeerStatus{
+				Address: addr,
+			}
+
+			stats, err := peer.FetchPeer(addr)
+			if err != nil {
+				ps.Online = false
+				ps.LastError = err.Error()
+			} else {
+				ps.Online = true
+				ps.Stats = stats
+				ps.LastSeen = time.Now()
+				merged.Merge(stats)
+			}
+
+			statuses = append(statuses, ps)
+		}
+
+		return peerResultMsg{statuses: statuses, merged: &merged}
+	}
 }
 
 // --- Status ---
@@ -1408,14 +1444,6 @@ func (d *Dashboard) handleSortKey(key string) {
 			"d": "date", "s": "sessions", "m": "messages", "i": "input", "o": "output", "c": "cost",
 		}[key]; ok {
 			d.toggleSort(&d.sortCosts, col)
-		}
-	case 7: // Network: a=add, f=fetch
-		if key == "a" {
-			d.inputMode = true
-			d.inputBuffer = ""
-			d.inputPrompt = "IP:port address"
-		} else if key == "f" {
-			d.fetchPeers()
 		}
 	}
 }

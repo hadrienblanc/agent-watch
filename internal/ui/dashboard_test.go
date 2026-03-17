@@ -1287,10 +1287,13 @@ func TestNetworkSortKeysAddAndFetch(t *testing.T) {
 	d.stats = fakeStats()
 	d.localStats = fakeStats()
 	d.loading = false
+	d.width = 120
+	d.height = 40
 	d.tab = 7
 
-	// 'a' should enter input mode
-	d.handleSortKey("a")
+	// 'a' should enter input mode (handled in Update, not handleSortKey)
+	model, _ := d.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	d = model.(Dashboard)
 	if !d.inputMode {
 		t.Error("key 'a' on network tab should enter input mode")
 	}
@@ -1301,8 +1304,15 @@ func TestNetworkSortKeysAddAndFetch(t *testing.T) {
 	// Reset
 	d.inputMode = false
 
-	// 'f' should call fetchPeers (no crash with empty peers)
-	d.handleSortKey("f")
+	// 'f' should trigger async fetch (returns a command, no crash)
+	model, cmd := d.Update(tea.KeyPressMsg{Code: 'f', Text: "f"})
+	d = model.(Dashboard)
+	if !d.fetchingPeers {
+		// Only true if peers are configured; with no peers, cmd is nil
+		if cmd != nil {
+			t.Error("fetchingPeers should be true when cmd is returned")
+		}
+	}
 }
 
 func TestViewNetworkWithPeers(t *testing.T) {
