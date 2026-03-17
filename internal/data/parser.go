@@ -191,13 +191,11 @@ func pricingFor(model string) ModelPricing {
 }
 
 // ComputeCost calcule le coût estimé en dollars pour un modèle donné.
+// inputTokens = tokens non-cachés (cache miss), cacheRead = tokens lus du cache,
+// cacheWrite = tokens écrits au cache (cache_creation_input_tokens).
 func ComputeCost(model string, inputTokens, outputTokens, cacheRead, cacheWrite int) float64 {
 	p := pricingFor(model)
-	cacheMiss := inputTokens - cacheRead
-	if cacheMiss < 0 {
-		cacheMiss = 0
-	}
-	return float64(cacheMiss)*p.InputPerM/1_000_000 +
+	return float64(inputTokens)*p.InputPerM/1_000_000 +
 		float64(outputTokens)*p.OutputPerM/1_000_000 +
 		float64(cacheRead)*p.CacheReadPerM/1_000_000 +
 		float64(cacheWrite)*p.CacheWritePerM/1_000_000

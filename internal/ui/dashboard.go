@@ -248,12 +248,19 @@ func (d Dashboard) viewOverview(w int) string {
 	)
 
 	// Tokens
-	totalTokens := s.TotalInputTokens + s.TotalOutputTokens
+	totalInput := s.TotalInputTokens + s.TotalCacheRead
+	totalTokens := totalInput + s.TotalOutputTokens
+	cacheRate := 0.0
+	if totalInput > 0 {
+		cacheRate = float64(s.TotalCacheRead) / float64(totalInput) * 100
+	}
 
 	tokens := d.panel("Tokens (tout temps)", thirdW,
 		kv{"Total", bigNumStyle.Render(fmtNum(totalTokens))},
-		kv{"Input", valueStyle.Render(fmtNum(s.TotalInputTokens))},
+		kv{"Input", valueStyle.Render(fmtNum(totalInput))},
 		kv{"Output", valueStyle.Render(fmtNum(s.TotalOutputTokens))},
+		kv{"Cache lu", cyanStyle.Render(fmtNum(s.TotalCacheRead))},
+		kv{"Taux cache", d.colorCacheRate(cacheRate)},
 		kv{"Coût estimé", orangeStyle.Render(fmt.Sprintf("~$%.2f", s.TotalCost))},
 	)
 
