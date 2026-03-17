@@ -64,7 +64,7 @@ func refreshCmd() tea.Cmd {
 }
 
 func (d Dashboard) Init() tea.Cmd {
-	return tea.Batch(loadStats, refreshCmd())
+	return loadStats
 }
 
 func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -78,8 +78,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		d.loading = false
 
 	case refreshMsg:
-		d.loading = true
-		return d, tea.Batch(loadStats, refreshCmd())
+		// refresh désactivé
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -250,17 +249,11 @@ func (d Dashboard) viewOverview(w int) string {
 
 	// Tokens
 	totalTokens := s.TotalInputTokens + s.TotalOutputTokens
-	cacheRate := 0.0
-	if s.TotalInputTokens > 0 {
-		cacheRate = float64(s.TotalCacheRead) / float64(s.TotalInputTokens) * 100
-	}
 
 	tokens := d.panel("Tokens (tout temps)", thirdW,
 		kv{"Total", bigNumStyle.Render(fmtNum(totalTokens))},
 		kv{"Input", valueStyle.Render(fmtNum(s.TotalInputTokens))},
 		kv{"Output", valueStyle.Render(fmtNum(s.TotalOutputTokens))},
-		kv{"Cache lu", cyanStyle.Render(fmtNum(s.TotalCacheRead))},
-		kv{"Taux cache", d.colorCacheRate(cacheRate)},
 		kv{"Coût estimé", orangeStyle.Render(fmt.Sprintf("~$%.2f", s.TotalCost))},
 	)
 
@@ -1120,7 +1113,7 @@ func (d Dashboard) viewModels(w int) string {
 
 func (d Dashboard) viewStatus(w int) string {
 	left := statusStyle.Render(fmt.Sprintf("Chargé: %s", d.stats.LastUpdated.Format("15:04:05")))
-	helpText := "◀ ▶/tab: onglets  •  j/k: défiler  •  r: recharger  •  auto: 60s  •  q: quitter"
+	helpText := "◀ ▶/tab: onglets  •  j/k: défiler  •  r: recharger  •  q: quitter"
 	if d.tab == 4 {
 		helpText = "◀ ▶/tab: onglets  •  g: graphique  •  t: tableau  •  j/k: défiler  •  q: quitter"
 	}
