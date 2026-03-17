@@ -80,6 +80,7 @@ type DayTokens struct {
 // Session résume une conversation.
 type Session struct {
 	ID        string
+	Source    string // "claude", "opencode", "codex"
 	Slug      string
 	Project   string
 	StartTime time.Time
@@ -142,9 +143,19 @@ type ModelPricing struct {
 
 // Pricing par modèle ($/M tokens).
 var modelPricing = map[string]ModelPricing{
-	"claude-opus-4-6":    {InputPerM: 15.0, OutputPerM: 75.0, CacheReadPerM: 1.50, CacheWritePerM: 18.75},
-	"claude-sonnet-4-6":  {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
-	"claude-haiku-4-5":   {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
+	// Anthropic
+	"claude-opus-4-6":   {InputPerM: 15.0, OutputPerM: 75.0, CacheReadPerM: 1.50, CacheWritePerM: 18.75},
+	"claude-sonnet-4-6": {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
+	"claude-haiku-4-5":  {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
+	// ZhipuAI (GLM)
+	"glm-5":   {InputPerM: 0.72, OutputPerM: 2.30, CacheReadPerM: 0.19, CacheWritePerM: 0.72},
+	"glm-4.5": {InputPerM: 0.60, OutputPerM: 2.20, CacheReadPerM: 0.11, CacheWritePerM: 0.60},
+	// MiniMax
+	"MiniMax-M2.5": {InputPerM: 0.30, OutputPerM: 1.20, CacheReadPerM: 0.03, CacheWritePerM: 0.375},
+	// OpenAI (Codex)
+	"gpt-5.3-codex": {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
+	"gpt-5.4":       {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
+	"gpt-4o":        {InputPerM: 2.50, OutputPerM: 10.0, CacheReadPerM: 1.25, CacheWritePerM: 2.50},
 }
 
 // Pricing par défaut (Opus) pour modèles inconnus.
@@ -247,6 +258,7 @@ func LoadStats() (*Stats, error) {
 
 		for i := range sessions {
 			sessions[i].Project = projectName
+			sessions[i].Source = "claude"
 			s := &sessions[i]
 
 			stats.TotalInputTokens += s.InputTokens
@@ -274,6 +286,58 @@ func LoadStats() (*Stats, error) {
 
 		stats.Sessions = append(stats.Sessions, sessions...)
 		stats.Projects = append(stats.Projects, projSummary)
+	}
+
+	// Charger OpenCode et Codex
+	for _, loader := range []struct {
+		name string
+		fn   func() ([]Session, error)
+	}{
+		{"opencode", LoadOpenCodeSessions},
+		{"codex", LoadCodexSessions},
+	} {
+		extraSessions, err := loader.fn()
+		if err != nil || len(extraSessions) == 0 {
+			continue
+		}
+
+		// Agréger par projet
+		projMap := make(map[string]*ProjectSummary)
+		for i := range extraSessions {
+			s := &extraSessions[i]
+			stats.TotalInputTokens += s.InputTokens
+			stats.TotalOutputTokens += s.OutputTokens
+			stats.TotalCacheRead += s.CacheReadTokens
+			stats.TotalMessages += s.UserMessages + s.AssistantMessages
+			stats.TotalToolErrors += s.ToolErrors
+
+			for tool, count := range s.ToolUses {
+				stats.ToolUsage[tool] += count
+				stats.TotalToolUses += count
+			}
+			for model, count := range s.Models {
+				stats.Models[model] += count
+			}
+
+			key := loader.name + "/" + s.Project
+			ps := projMap[key]
+			if ps == nil {
+				ps = &ProjectSummary{Name: s.Project + " (" + loader.name + ")"}
+				projMap[key] = ps
+			}
+			ps.Sessions++
+			ps.Messages += s.UserMessages + s.AssistantMessages
+			ps.Tokens += s.InputTokens + s.OutputTokens
+			ps.InputTokens += s.InputTokens
+			ps.OutputTokens += s.OutputTokens
+			ps.CacheRead += s.CacheReadTokens
+			ps.Cost += s.Cost
+		}
+
+		stats.Sessions = append(stats.Sessions, extraSessions...)
+		for _, ps := range projMap {
+			stats.Projects = append(stats.Projects, *ps)
+		}
 	}
 
 	stats.TotalSessions = len(stats.Sessions)
