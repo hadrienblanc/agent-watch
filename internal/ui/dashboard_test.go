@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"claude_monitor/internal/data"
+	"claude_monitor/internal/peer"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -1140,5 +1141,402 @@ func TestNetworkTabNavigation(t *testing.T) {
 	d = model.(Dashboard)
 	if d.tab != 7 {
 		t.Errorf("expected tab 7 for network, got %d", d.tab)
+	}
+}
+
+func TestSharedLocalStatsAtomicPointer(t *testing.T) {
+	d := NewDashboard()
+
+	// Initially nil
+	if got := d.GetLocalStats(); got != nil {
+		t.Errorf("GetLocalStats should be nil initially, got %+v", got)
+	}
+
+	// Simulate bubbletea Update with statsMsg
+	stats := fakeStats()
+	model, _ := d.Update(statsMsg(stats))
+	d2 := model.(Dashboard)
+
+	// The returned model should have stats
+	if d2.localStats == nil {
+		t.Fatal("d2.localStats should not be nil after statsMsg")
+	}
+
+	// Both the original and the copy share the atomic pointer
+	got := d.GetLocalStats()
+	if got == nil {
+		t.Fatal("original Dashboard.GetLocalStats should see stats via atomic pointer")
+	}
+	if got.TotalSessions != 5 {
+		t.Errorf("GetLocalStats().TotalSessions = %d, want 5", got.TotalSessions)
+	}
+
+	// The copy also sees the same stats
+	got2 := d2.GetLocalStats()
+	if got2 == nil {
+		t.Fatal("copy Dashboard.GetLocalStats should also see stats")
+	}
+	if got2.TotalSessions != got.TotalSessions {
+		t.Error("both copies should see the same stats via atomic pointer")
+	}
+}
+
+func TestSetPort(t *testing.T) {
+	d := NewDashboard()
+	if d.port != 9999 {
+		t.Errorf("default port should be 9999, got %d", d.port)
+	}
+	d.SetPort(8080)
+	if d.port != 8080 {
+		t.Errorf("port should be 8080 after SetPort, got %d", d.port)
+	}
+}
+
+func TestHandleInputAddPeer(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.localStats = fakeStats()
+	d.loading = false
+
+	// Enter input mode
+	d.inputMode = true
+	d.inputBuffer = ""
+	d.inputPrompt = "IP:port address"
+
+	// Type an address
+	for _, ch := range "192.168.1.50:9999" {
+		d.handleInput(string(ch))
+	}
+
+	if d.inputBuffer != "192.168.1.50:9999" {
+		t.Errorf("inputBuffer = %q, want %q", d.inputBuffer, "192.168.1.50:9999")
+	}
+
+	// Press enter to confirm
+	d.handleInput("enter")
+
+	if d.inputMode {
+		t.Error("inputMode should be false after enter")
+	}
+	if d.inputBuffer != "" {
+		t.Error("inputBuffer should be cleared after enter")
+	}
+
+	// Peer should be stored
+	peers := d.peerStorage.List()
+	if len(peers) != 1 || peers[0] != "192.168.1.50:9999" {
+		t.Errorf("expected peer 192.168.1.50:9999, got %v", peers)
+	}
+}
+
+func TestHandleInputEscape(t *testing.T) {
+	d := NewDashboard()
+	d.inputMode = true
+	d.inputBuffer = "partial"
+
+	d.handleInput("escape")
+
+	if d.inputMode {
+		t.Error("inputMode should be false after escape")
+	}
+	if d.inputBuffer != "" {
+		t.Error("inputBuffer should be cleared after escape")
+	}
+}
+
+func TestHandleInputBackspace(t *testing.T) {
+	d := NewDashboard()
+	d.inputMode = true
+	d.inputBuffer = "abc"
+
+	d.handleInput("backspace")
+	if d.inputBuffer != "ab" {
+		t.Errorf("after backspace: inputBuffer = %q, want %q", d.inputBuffer, "ab")
+	}
+
+	d.handleInput("backspace")
+	d.handleInput("backspace")
+	if d.inputBuffer != "" {
+		t.Errorf("after all backspaces: inputBuffer = %q, want empty", d.inputBuffer)
+	}
+
+	// Backspace on empty should not panic
+	d.handleInput("backspace")
+	if d.inputBuffer != "" {
+		t.Error("backspace on empty should remain empty")
+	}
+}
+
+func TestHandleInputIgnoresNonPrintable(t *testing.T) {
+	d := NewDashboard()
+	d.inputMode = true
+	d.inputBuffer = ""
+
+	d.handleInput("tab")
+	d.handleInput("up")
+	d.handleInput("down")
+	d.handleInput("ctrl+c")
+
+	if d.inputBuffer != "" {
+		t.Errorf("non-printable keys should not modify buffer, got %q", d.inputBuffer)
+	}
+}
+
+func TestNetworkSortKeysAddAndFetch(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.localStats = fakeStats()
+	d.loading = false
+	d.tab = 7
+
+	// 'a' should enter input mode
+	d.handleSortKey("a")
+	if !d.inputMode {
+		t.Error("key 'a' on network tab should enter input mode")
+	}
+	if d.inputPrompt != "IP:port address" {
+		t.Errorf("inputPrompt = %q, want %q", d.inputPrompt, "IP:port address")
+	}
+
+	// Reset
+	d.inputMode = false
+
+	// 'f' should call fetchPeers (no crash with empty peers)
+	d.handleSortKey("f")
+}
+
+func TestViewNetworkWithPeers(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.localStats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+	d.tab = 7
+
+	// Add a peer status (simulating fetched peers)
+	d.peerStatuses = []peer.PeerStatus{
+		{
+			Address: "192.168.1.74:9999",
+			Online:  true,
+			Stats: &data.Stats{
+				TotalSessions:     3,
+				TotalInputTokens:  2000,
+				TotalOutputTokens: 1000,
+			},
+		},
+		{
+			Address:   "192.168.1.99:9999",
+			Online:    false,
+			LastError: "connection failed",
+		},
+	}
+
+	view := d.View()
+	content := view.Content
+
+	if !strings.Contains(content, "192.168.1.74:9999") {
+		t.Error("should show online peer address")
+	}
+	if !strings.Contains(content, "online") {
+		t.Error("should show 'online' status for reachable peer")
+	}
+	if !strings.Contains(content, "192.168.1.99:9999") {
+		t.Error("should show offline peer address")
+	}
+	if !strings.Contains(content, "offline") {
+		t.Error("should show 'offline' status for unreachable peer")
+	}
+	if !strings.Contains(content, "connection failed") {
+		t.Error("should show error message for failed peer")
+	}
+}
+
+func TestViewNetworkStatusBar(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.localStats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+	d.tab = 7
+
+	d.peerStatuses = []peer.PeerStatus{
+		{Address: "a", Online: true},
+		{Address: "b", Online: false},
+	}
+
+	view := d.View()
+	content := view.Content
+
+	// Status bar should show peer count
+	if !strings.Contains(content, "1/2") {
+		t.Error("status bar should show online/total peers count (1/2)")
+	}
+	if !strings.Contains(content, "add") {
+		t.Error("status bar should show 'add' help")
+	}
+}
+
+func TestReloadKey(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+
+	model, cmd := d.Update(tea.KeyPressMsg{Code: 'r', Text: "r"})
+	d = model.(Dashboard)
+
+	if !d.loading {
+		t.Error("pressing 'r' should set loading=true")
+	}
+	if cmd == nil {
+		t.Error("pressing 'r' should return a command")
+	}
+}
+
+func TestScrollKeys(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+	d.scroll = 0
+
+	// Scroll down with j
+	model, _ := d.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+	d = model.(Dashboard)
+	if d.scroll != 1 {
+		t.Errorf("expected scroll=1 after 'j', got %d", d.scroll)
+	}
+
+	// Scroll down with down arrow
+	model, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	d = model.(Dashboard)
+	if d.scroll != 2 {
+		t.Errorf("expected scroll=2 after down, got %d", d.scroll)
+	}
+
+	// Scroll up with k
+	model, _ = d.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	d = model.(Dashboard)
+	if d.scroll != 1 {
+		t.Errorf("expected scroll=1 after 'k', got %d", d.scroll)
+	}
+
+	// Scroll up with up arrow
+	model, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	d = model.(Dashboard)
+	if d.scroll != 0 {
+		t.Errorf("expected scroll=0 after up, got %d", d.scroll)
+	}
+
+	// Up at 0 should stay at 0
+	model, _ = d.Update(tea.KeyPressMsg{Code: 'k', Text: "k"})
+	d = model.(Dashboard)
+	if d.scroll != 0 {
+		t.Errorf("scroll should not go below 0, got %d", d.scroll)
+	}
+}
+
+func TestCostViewToggle(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.loading = false
+	d.tab = 4
+	d.costView = "g"
+
+	d.handleSortKey("t")
+	if d.costView != "t" {
+		t.Errorf("expected costView='t' after pressing 't', got %q", d.costView)
+	}
+
+	d.handleSortKey("g")
+	if d.costView != "g" {
+		t.Errorf("expected costView='g' after pressing 'g', got %q", d.costView)
+	}
+}
+
+func TestInputModeBlocksNavigation(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+	d.tab = 7
+	d.inputMode = true
+	d.inputBuffer = ""
+
+	// Tab key should not switch tabs while in input mode
+	// handleInput returns *Dashboard, so type-assert accordingly
+	model, _ := d.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	dp := model.(*Dashboard)
+	if dp.tab != 7 {
+		t.Errorf("tab should remain 7 during input mode, got %d", dp.tab)
+	}
+
+	// 'q' should not quit during input mode
+	model, cmd := dp.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	dp = model.(*Dashboard)
+	if cmd != nil {
+		t.Error("'q' during input mode should not trigger quit command")
+	}
+	if dp.inputBuffer != "q" {
+		t.Errorf("'q' should be typed into buffer, got %q", dp.inputBuffer)
+	}
+}
+
+func TestWindowSizeMsg(t *testing.T) {
+	d := NewDashboard()
+	model, _ := d.Update(tea.WindowSizeMsg{Width: 200, Height: 50})
+	d = model.(Dashboard)
+	if d.width != 200 || d.height != 50 {
+		t.Errorf("expected 200x50, got %dx%d", d.width, d.height)
+	}
+}
+
+func TestTabSwitchResetsScroll(t *testing.T) {
+	d := NewDashboard()
+	d.stats = fakeStats()
+	d.loading = false
+	d.width = 120
+	d.height = 40
+	d.scroll = 10
+
+	model, _ := d.Update(tea.KeyPressMsg{Code: '2', Text: "2"})
+	d = model.(Dashboard)
+
+	if d.scroll != 0 {
+		t.Errorf("switching tabs should reset scroll to 0, got %d", d.scroll)
+	}
+	if d.tab != 1 {
+		t.Errorf("pressing '2' should switch to tab 1, got %d", d.tab)
+	}
+}
+
+func TestNewDashboardDefaults(t *testing.T) {
+	d := NewDashboard()
+
+	if !d.loading {
+		t.Error("new dashboard should start in loading state")
+	}
+	if d.sharedLocalStats == nil {
+		t.Error("sharedLocalStats should be initialized")
+	}
+	if d.peerStorage == nil {
+		t.Error("peerStorage should be initialized")
+	}
+	if d.port != 9999 {
+		t.Errorf("default port should be 9999, got %d", d.port)
+	}
+	if d.costView != "g" {
+		t.Errorf("default costView should be 'g', got %q", d.costView)
+	}
+	if d.sortCosts.col != "date" {
+		t.Errorf("default cost sort should be 'date', got %q", d.sortCosts.col)
+	}
+	if d.sortModels.col != "msgs" {
+		t.Errorf("default model sort should be 'msgs', got %q", d.sortModels.col)
 	}
 }

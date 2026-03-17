@@ -80,3 +80,79 @@ func TestServerStatsNil(t *testing.T) {
 	}
 	resp.Body.Close()
 }
+
+func TestServerHealthCORS(t *testing.T) {
+	srv := New(9999, func() interface{} { return nil })
+
+	handler := http.NewServeMux()
+	handler.HandleFunc("/api/health", srv.HandleHealth)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/health")
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	cors := resp.Header.Get("Access-Control-Allow-Origin")
+	if cors != "*" {
+		t.Errorf("Expected CORS header '*', got %q", cors)
+	}
+
+	ct := resp.Header.Get("Content-Type")
+	if ct != "application/json" {
+		t.Errorf("Expected Content-Type 'application/json', got %q", ct)
+	}
+}
+
+func TestServerStatsCORS(t *testing.T) {
+	stats := &data.Stats{TotalSessions: 1}
+	srv := New(9999, func() interface{} { return stats })
+
+	handler := http.NewServeMux()
+	handler.HandleFunc("/api/stats", srv.HandleStats)
+
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/api/stats")
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	cors := resp.Header.Get("Access-Control-Allow-Origin")
+	if cors != "*" {
+		t.Errorf("Expected CORS header '*', got %q", cors)
+	}
+}
+
+func TestServerStop(t *testing.T) {
+	srv := New(0, func() interface{} { return nil })
+
+	// Stop before start should not error
+	if err := srv.Stop(); err != nil {
+		t.Errorf("Stop before Start should not error, got %v", err)
+	}
+}
+
+func TestServerNew(t *testing.T) {
+	called := false
+	provider := func() interface{} {
+		called = true
+		return nil
+	}
+
+	srv := New(8080, provider)
+	if srv.port != 8080 {
+		t.Errorf("expected port 8080, got %d", srv.port)
+	}
+
+	// Ensure the provider is stored correctly
+	srv.getStats()
+	if !called {
+		t.Error("stats provider was not called")
+	}
+}
