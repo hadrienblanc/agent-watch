@@ -319,19 +319,39 @@ func (d Dashboard) viewOverview(w int) string {
 	}
 	sort.Slice(srcs, func(i, j int) bool { return srcs[i].sessions > srcs[j].sessions })
 
-	var srcRows []kv
+	const (
+		colSrc  = 12
+		colSess = 10
+		colMsgs = 10
+		colCost = 10
+	)
+	var srcTableRows []string
+	srcHeader := fmt.Sprintf("  %-*s %*s %*s %*s",
+		colSrc, "Source",
+		colSess, "Sessions",
+		colMsgs, "Messages",
+		colCost, "Coût",
+	)
+	srcTableRows = append(srcTableRows, tableHeaderStyle.Render(srcHeader))
+	srcTableRows = append(srcTableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colCost+8)))
 	for _, se := range srcs {
 		pct := float64(se.sessions) / float64(max(s.TotalSessions, 1)) * 100
 		bar := d.miniBar(pct, 15)
-		srcRows = append(srcRows, kv{se.name, fmt.Sprintf("%s %s  %s msgs  %s %s",
-			valueStyle.Render(fmt.Sprintf("%d", se.sessions)),
-			labelStyle.Render("sess"),
-			valueStyle.Render(fmtNum(se.messages)),
-			orangeStyle.Render(fmt.Sprintf("$%.0f", se.cost)),
+		row := fmt.Sprintf("  %-*s %*d %*s %*s  %s",
+			colSrc, se.name,
+			colSess, se.sessions,
+			colMsgs, fmtNum(se.messages),
+			colCost, fmt.Sprintf("$%.0f", se.cost),
 			bar,
-		)})
+		)
+		srcTableRows = append(srcTableRows, row)
 	}
-	sourcesPanel := d.panel("Sources", w, srcRows...)
+	sourcesPanel := panelStyle.Width(w).Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			panelTitleStyle.Render("Sources"),
+			strings.Join(srcTableRows, "\n"),
+		),
+	)
 
 	return lipgloss.JoinVertical(lipgloss.Left, topRow, "", midRow, "", sourcesPanel)
 }
