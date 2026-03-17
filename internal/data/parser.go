@@ -165,9 +165,11 @@ var modelPricing = map[string]ModelPricing{
 	"o3":            {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
 	"o4-mini":       {InputPerM: 1.10, OutputPerM: 4.40, CacheReadPerM: 0.275, CacheWritePerM: 1.10},
 	// Google
-	"gemini-2.5-pro":   {InputPerM: 1.25, OutputPerM: 10.0, CacheReadPerM: 0.315, CacheWritePerM: 4.50},
-	"gemini-2.5-flash": {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
-	"gemini-2.0-flash": {InputPerM: 0.10, OutputPerM: 0.40, CacheReadPerM: 0.025, CacheWritePerM: 0.10},
+	"gemini-2.5-pro":        {InputPerM: 1.25, OutputPerM: 10.0, CacheReadPerM: 0.315, CacheWritePerM: 4.50},
+	"gemini-2.5-flash":      {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
+	"gemini-2.5-flash-lite": {InputPerM: 0.05, OutputPerM: 0.20, CacheReadPerM: 0.0125, CacheWritePerM: 0.05},
+	"gemini-3-flash-preview":{InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
+	"gemini-2.0-flash":      {InputPerM: 0.10, OutputPerM: 0.40, CacheReadPerM: 0.025, CacheWritePerM: 0.10},
 	// Coût nul (synthétique)
 	"<synthetic>": {InputPerM: 0, OutputPerM: 0, CacheReadPerM: 0, CacheWritePerM: 0},
 }
