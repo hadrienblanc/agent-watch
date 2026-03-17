@@ -417,18 +417,10 @@ func (d Dashboard) viewSessions(w int) string {
 	rows = append(rows, tableHeaderStyle.Render(header))
 	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colProjet+colMsgs+colTools+colTokens+colDuree+6)))
 
-	start := d.scroll
-	end := min(start+15, len(sessions))
-	if start >= len(sessions) {
-		start = max(0, len(sessions)-1)
-		end = len(sessions)
-	}
+	start, end := scrollRange(d.scroll, len(sessions), 15)
 
 	for _, sess := range sessions[start:end] {
-		proj := sess.Project
-		if len(proj) > colProjet-2 {
-			proj = proj[:colProjet-2]
-		}
+		proj := truncate(sess.Project, colProjet-2)
 
 		totalMsgs := sess.UserMessages + sess.AssistantMessages
 		totalTools := 0
@@ -594,10 +586,7 @@ func (d Dashboard) viewProjects(w int) string {
 	}
 
 	for _, p := range projects {
-		name := p.Name
-		if len(name) > colName-2 {
-			name = name[:colName-2]
-		}
+		name := truncate(p.Name, colName-2)
 
 		bar := ""
 		if showBar && maxMsgs > 0 {
@@ -610,7 +599,7 @@ func (d Dashboard) viewProjects(w int) string {
 			colSessions, p.Sessions,
 			colMessages, fmtNum(p.Messages),
 			colTokens, fmtNum(p.Tokens),
-			colCost, fmt.Sprintf("$%.2f", p.Cost),
+			colCost, formatCost(p.Cost),
 			bar,
 		)
 		rows = append(rows, row)
@@ -858,15 +847,9 @@ func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
 		totalCost += dc.Cost
 	}
 
-	start := d.scroll
-	end := min(start+20, len(sorted))
-	if start >= len(sorted) {
-		start = max(0, len(sorted)-1)
-		end = len(sorted)
-	}
+	start, end := scrollRange(d.scroll, len(sorted), 20)
 
 	for _, dc := range sorted[start:end] {
-		costStr := fmt.Sprintf("$%.2f", dc.Cost)
 		row := fmt.Sprintf("  %-*s %*d %*s %*s %*s %*s %*s",
 			colDate, dc.Date.Format("02 Jan 2006"),
 			colSessions, dc.Sessions,
@@ -874,17 +857,17 @@ func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
 			colInput, fmtNum(dc.InputTokens),
 			colOutput, fmtNum(dc.OutputTokens),
 			colCache, fmtNum(dc.CacheRead),
-			colCost, costStr,
+			colCost, formatCost(dc.Cost),
 		)
 		rows = append(rows, row)
 	}
 
 	if len(sorted) > 20 {
 		rows = append(rows, "")
-		rows = append(rows, labelStyle.Render(fmt.Sprintf("  %d/%d jours (j/k pour défiler)  •  Total: $%.2f", min(end, len(sorted)), len(sorted), totalCost)))
+		rows = append(rows, labelStyle.Render(fmt.Sprintf("  %d/%d jours (j/k pour defiler)  -  Total: %s", min(end, len(sorted)), len(sorted), formatCost(totalCost))))
 	} else {
 		rows = append(rows, "")
-		rows = append(rows, labelStyle.Render(fmt.Sprintf("  Total: $%.2f", totalCost)))
+		rows = append(rows, labelStyle.Render(fmt.Sprintf("  Total: %s", formatCost(totalCost))))
 	}
 
 	content := strings.Join(rows, "\n")
@@ -1292,4 +1275,32 @@ func fmtDuration(d time.Duration) string {
 		return fmt.Sprintf("%dm", int(d.Minutes()))
 	}
 	return fmt.Sprintf("%.1fh", d.Hours())
+}
+
+// scrollRange returns start and end indices for a paginated list.
+func scrollRange(scroll, total, pageSize int) (start, end int) {
+	start = scroll
+	end = min(start+pageSize, total)
+	if start >= total {
+		start = max(0, total-1)
+		end = total
+	}
+	return
+}
+
+// truncate safely truncates a string to maxLen runes (Unicode-safe).
+func truncate(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	if maxLen <= 0 {
+		return ""
+	}
+	return string(runes[:maxLen])
+}
+
+// formatCost formats a cost as a dollar string.
+func formatCost(c float64) string {
+	return fmt.Sprintf("$%.2f", c)
 }

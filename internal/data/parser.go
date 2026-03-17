@@ -12,16 +12,16 @@ import (
 
 // Entry est une ligne du fichier JSONL de conversation.
 type Entry struct {
-	Type      string    `json:"type"`
-	UUID      string    `json:"uuid"`
-	Timestamp time.Time `json:"timestamp"`
-	SessionID string    `json:"sessionId"`
-	Message   *Message  `json:"message"`
-	DurationMs int      `json:"durationMs"`
-	CWD       string    `json:"cwd"`
-	Version   string    `json:"version"`
-	Slug      string    `json:"slug"`
-	GitBranch string    `json:"gitBranch"`
+	Type       string    `json:"type"`
+	UUID       string    `json:"uuid"`
+	Timestamp  time.Time `json:"timestamp"`
+	SessionID  string    `json:"sessionId"`
+	Message    *Message  `json:"message"`
+	DurationMs int       `json:"durationMs"`
+	CWD        string    `json:"cwd"`
+	Version    string    `json:"version"`
+	Slug       string    `json:"slug"`
+	GitBranch  string    `json:"gitBranch"`
 }
 
 type Message struct {
@@ -101,10 +101,10 @@ type Session struct {
 	ToolUses          map[string]int
 	ToolErrors        int
 
-	InputTokens              int
-	OutputTokens             int
-	CacheReadTokens          int
-	CacheCreationTokens      int
+	InputTokens         int
+	OutputTokens        int
+	CacheReadTokens     int
+	CacheCreationTokens int
 
 	Models        map[string]int
 	TotalDuration time.Duration
@@ -152,11 +152,11 @@ type ModelPricing struct {
 // Pricing par modèle ($/M tokens).
 var modelPricing = map[string]ModelPricing{
 	// Anthropic
-	"claude-opus-4-6":    {InputPerM: 15.0, OutputPerM: 75.0, CacheReadPerM: 1.50, CacheWritePerM: 18.75},
-	"claude-sonnet-4-6":  {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
-	"claude-sonnet-4-5":  {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
-	"claude-haiku-4-5":   {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
-	"claude-haiku-3-5":   {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
+	"claude-opus-4-6":   {InputPerM: 15.0, OutputPerM: 75.0, CacheReadPerM: 1.50, CacheWritePerM: 18.75},
+	"claude-sonnet-4-6": {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
+	"claude-sonnet-4-5": {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
+	"claude-haiku-4-5":  {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
+	"claude-haiku-3-5":  {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
 	// ZhipuAI (GLM)
 	"glm-5":         {InputPerM: 0.72, OutputPerM: 2.30, CacheReadPerM: 0.19, CacheWritePerM: 0.72},
 	"glm-4.7":       {InputPerM: 0.50, OutputPerM: 2.00, CacheReadPerM: 0.13, CacheWritePerM: 0.50},
@@ -173,11 +173,11 @@ var modelPricing = map[string]ModelPricing{
 	"o3":            {InputPerM: 2.00, OutputPerM: 8.00, CacheReadPerM: 0.50, CacheWritePerM: 2.00},
 	"o4-mini":       {InputPerM: 1.10, OutputPerM: 4.40, CacheReadPerM: 0.275, CacheWritePerM: 1.10},
 	// Google
-	"gemini-2.5-pro":        {InputPerM: 1.25, OutputPerM: 10.0, CacheReadPerM: 0.315, CacheWritePerM: 4.50},
-	"gemini-2.5-flash":      {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
-	"gemini-2.5-flash-lite": {InputPerM: 0.05, OutputPerM: 0.20, CacheReadPerM: 0.0125, CacheWritePerM: 0.05},
-	"gemini-3-flash-preview":{InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
-	"gemini-2.0-flash":      {InputPerM: 0.10, OutputPerM: 0.40, CacheReadPerM: 0.025, CacheWritePerM: 0.10},
+	"gemini-2.5-pro":         {InputPerM: 1.25, OutputPerM: 10.0, CacheReadPerM: 0.315, CacheWritePerM: 4.50},
+	"gemini-2.5-flash":       {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
+	"gemini-2.5-flash-lite":  {InputPerM: 0.05, OutputPerM: 0.20, CacheReadPerM: 0.0125, CacheWritePerM: 0.05},
+	"gemini-3-flash-preview": {InputPerM: 0.15, OutputPerM: 0.60, CacheReadPerM: 0.0375, CacheWritePerM: 0.15},
+	"gemini-2.0-flash":       {InputPerM: 0.10, OutputPerM: 0.40, CacheReadPerM: 0.025, CacheWritePerM: 0.10},
 	// Coût nul (synthétique)
 	"<synthetic>": {InputPerM: 0, OutputPerM: 0, CacheReadPerM: 0, CacheWritePerM: 0},
 }
@@ -224,13 +224,13 @@ type Stats struct {
 	TotalSessions     int
 
 	// Temporels
-	ActiveSessions  int // activité dans les 30 dernières minutes
-	TodaySessions   int
-	TodayMessages   int
-	TodayTokens     int
-	WeekSessions    int
-	WeekMessages    int
-	WeekTokens      int
+	ActiveSessions int // activité dans les 30 dernières minutes
+	TodaySessions  int
+	TodayMessages  int
+	TodayTokens    int
+	WeekSessions   int
+	WeekMessages   int
+	WeekTokens     int
 
 	// Coûts par jour (60 derniers jours)
 	DailyCosts []DayCost
@@ -301,8 +301,8 @@ func LoadStats() (*Stats, error) {
 		}
 
 		projSummary := ProjectSummary{
-			Name:     projectName,
-			Path:     projectPath,
+			Name: projectName,
+			Path: projectPath,
 		}
 
 		for i := range sessions {

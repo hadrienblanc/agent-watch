@@ -68,8 +68,4 @@ var (
 
 	helpStyle = lipgloss.NewStyle().
 			Foreground(dimWhite)
-
-	slugStyle = lipgloss.NewStyle().
-			Foreground(cyan).
-			Bold(true)
 )

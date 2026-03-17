@@ -31,27 +31,21 @@ type codexSessionMeta struct {
 }
 
 type codexTokenUsage struct {
-	InputTokens            int `json:"input_tokens"`
-	CachedInputTokens      int `json:"cached_input_tokens"`
-	OutputTokens           int `json:"output_tokens"`
-	ReasoningOutputTokens  int `json:"reasoning_output_tokens"`
-	TotalTokens            int `json:"total_tokens"`
+	InputTokens           int `json:"input_tokens"`
+	CachedInputTokens     int `json:"cached_input_tokens"`
+	OutputTokens          int `json:"output_tokens"`
+	ReasoningOutputTokens int `json:"reasoning_output_tokens"`
+	TotalTokens           int `json:"total_tokens"`
 }
 
 type codexResponseItem struct {
-	Role  string `json:"role"`
-	Type  string `json:"type"`
+	Role string `json:"role"`
+	Type string `json:"type"`
 }
-
 
 func codexDBPath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".codex", "state_5.sqlite")
-}
-
-func codexSessionsDir() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".codex", "sessions")
 }
 
 // LoadCodexSessions charge les sessions depuis la DB Codex + JSONL.

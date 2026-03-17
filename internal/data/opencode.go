@@ -59,7 +59,7 @@ func LoadOpenCodeSessions() ([]Session, error) {
 
 	type sessionRow struct {
 		id, slug, dir, title, version string
-		created, updated             int64
+		created, updated              int64
 	}
 	var sessionRows []sessionRow
 
@@ -93,6 +93,7 @@ func LoadOpenCodeSessions() ([]Session, error) {
 		if err != nil {
 			continue
 		}
+		defer msgRows.Close()
 
 		for msgRows.Next() {
 			var dataStr string
