@@ -397,7 +397,7 @@ func (d Dashboard) viewSessions(w int) string {
 			for _, c := range b.ToolUses { tb += c }
 			less = ta < tb
 		case "tokens":
-			less = (a.InputTokens + a.OutputTokens) < (b.InputTokens + b.OutputTokens)
+			less = (a.InputTokens + a.CacheReadTokens + a.OutputTokens) < (b.InputTokens + b.CacheReadTokens + b.OutputTokens)
 		case "duree":
 			less = a.TotalDuration < b.TotalDuration
 		}
@@ -438,7 +438,7 @@ func (d Dashboard) viewSessions(w int) string {
 		for _, c := range sess.ToolUses {
 			totalTools += c
 		}
-		totalTokens := sess.InputTokens + sess.OutputTokens
+		totalTokens := sess.InputTokens + sess.CacheReadTokens + sess.OutputTokens
 
 		row := fmt.Sprintf("  %-*s %*d %*d %*s %*s",
 			colProjet, proj,
@@ -932,7 +932,7 @@ func (d Dashboard) viewSources(w int) string {
 		}
 		sd.sessions++
 		sd.messages += sess.UserMessages + sess.AssistantMessages
-		sd.input += sess.InputTokens
+		sd.input += sess.InputTokens + sess.CacheReadTokens
 		sd.output += sess.OutputTokens
 		sd.cache += sess.CacheReadTokens
 		sd.cost += sess.Cost
@@ -1026,7 +1026,7 @@ func (d Dashboard) viewModels(w int) string {
 			md.count += c
 			ratio := float64(c) / float64(max(1, totalMsgs))
 			md.cost += sess.Cost * ratio
-			md.input += int(float64(sess.InputTokens) * ratio)
+			md.input += int(float64(sess.InputTokens+sess.CacheReadTokens) * ratio)
 			md.output += int(float64(sess.OutputTokens) * ratio)
 			md.cache += int(float64(sess.CacheReadTokens) * ratio)
 		}
