@@ -25,11 +25,6 @@ var (
 			BorderForeground(midGray).
 			Padding(1, 2)
 
-	panelFocusStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(purple).
-			Padding(1, 2)
-
 	panelTitleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(purple).
@@ -67,12 +62,6 @@ var (
 	tableHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(purple)
-
-	tableCellStyle = lipgloss.NewStyle().
-			Foreground(white)
-
-	dimCellStyle = lipgloss.NewStyle().
-			Foreground(dimWhite)
 
 	statusStyle = lipgloss.NewStyle().
 			Foreground(dimWhite)

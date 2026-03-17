@@ -13,7 +13,6 @@ import (
 )
 
 type statsMsg *data.Stats
-type refreshMsg struct{}
 
 const totalTabs = 7
 
@@ -57,11 +56,6 @@ func loadStats() tea.Msg {
 	return statsMsg(stats)
 }
 
-func refreshCmd() tea.Cmd {
-	return tea.Tick(60*time.Second, func(t time.Time) tea.Msg {
-		return refreshMsg{}
-	})
-}
 
 func (d Dashboard) Init() tea.Cmd {
 	return loadStats
@@ -76,9 +70,6 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statsMsg:
 		d.stats = msg
 		d.loading = false
-
-	case refreshMsg:
-		// refresh désactivé
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -1020,6 +1011,10 @@ func (d Dashboard) viewModels(w int) string {
 		if src == "" {
 			src = "claude"
 		}
+		totalMsgs := 0
+		for _, c := range sess.Models {
+			totalMsgs += c
+		}
 		for m, c := range sess.Models {
 			key := m + "|" + src
 			md := mdMap[key]
@@ -1028,9 +1023,10 @@ func (d Dashboard) viewModels(w int) string {
 				mdMap[key] = md
 			}
 			md.count += c
-			md.cost += sess.Cost / float64(max(1, len(sess.Models)))
-			md.input += sess.InputTokens / max(1, len(sess.Models))
-			md.output += sess.OutputTokens / max(1, len(sess.Models))
+			ratio := float64(c) / float64(max(1, totalMsgs))
+			md.cost += sess.Cost * ratio
+			md.input += int(float64(sess.InputTokens) * ratio)
+			md.output += int(float64(sess.OutputTokens) * ratio)
 		}
 	}
 
