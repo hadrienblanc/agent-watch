@@ -148,8 +148,10 @@ var modelPricing = map[string]ModelPricing{
 	"claude-sonnet-4-6": {InputPerM: 3.0, OutputPerM: 15.0, CacheReadPerM: 0.30, CacheWritePerM: 3.75},
 	"claude-haiku-4-5":  {InputPerM: 0.80, OutputPerM: 4.0, CacheReadPerM: 0.08, CacheWritePerM: 1.0},
 	// ZhipuAI (GLM)
-	"glm-5":   {InputPerM: 0.72, OutputPerM: 2.30, CacheReadPerM: 0.19, CacheWritePerM: 0.72},
-	"glm-4.5": {InputPerM: 0.60, OutputPerM: 2.20, CacheReadPerM: 0.11, CacheWritePerM: 0.60},
+	"glm-5":         {InputPerM: 0.72, OutputPerM: 2.30, CacheReadPerM: 0.19, CacheWritePerM: 0.72},
+	"glm-4.7":       {InputPerM: 0.50, OutputPerM: 2.00, CacheReadPerM: 0.13, CacheWritePerM: 0.50},
+	"glm-4.7-flash": {InputPerM: 0.10, OutputPerM: 0.40, CacheReadPerM: 0.03, CacheWritePerM: 0.10},
+	"glm-4.5":       {InputPerM: 0.60, OutputPerM: 2.20, CacheReadPerM: 0.11, CacheWritePerM: 0.60},
 	// MiniMax
 	"MiniMax-M2.5": {InputPerM: 0.30, OutputPerM: 1.20, CacheReadPerM: 0.03, CacheWritePerM: 0.375},
 	// OpenAI (Codex)
