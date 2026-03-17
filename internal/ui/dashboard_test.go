@@ -132,17 +132,17 @@ func TestDashboardViewTabs(t *testing.T) {
 	// Overview
 	d.tab = 0
 	view := d.View()
-	if !strings.Contains(view.Content, "Activit") {
-		t.Error("overview should contain 'Activité'")
+	if !strings.Contains(view.Content, "Activity") {
+		t.Error("overview should contain 'Activity'")
 	}
 	if !strings.Contains(view.Content, "Tokens") {
 		t.Error("overview should contain 'Tokens'")
 	}
-	if !strings.Contains(view.Content, "semaine") {
-		t.Error("overview should contain 'semaine'")
+	if !strings.Contains(view.Content, "This Week") {
+		t.Error("overview should contain 'This Week'")
 	}
-	if !strings.Contains(view.Content, "Sant") {
-		t.Error("overview should contain 'Santé'")
+	if !strings.Contains(view.Content, "Health") {
+		t.Error("overview should contain 'Health'")
 	}
 
 	// Sessions
@@ -155,15 +155,15 @@ func TestDashboardViewTabs(t *testing.T) {
 	// Tools
 	d.tab = 2
 	view = d.View()
-	if !strings.Contains(view.Content, "outils") || !strings.Contains(view.Content, "Outil") {
-		t.Error("tools tab should contain tool info")
+	if !strings.Contains(view.Content, "Tool Usage") {
+		t.Error("tools tab should contain 'Tool Usage'")
 	}
 
 	// Projects
 	d.tab = 3
 	view = d.View()
-	if !strings.Contains(view.Content, "Projet") {
-		t.Error("projects tab should contain 'Projet'")
+	if !strings.Contains(view.Content, "Project") {
+		t.Error("projects tab should contain 'Project'")
 	}
 	if !strings.Contains(view.Content, "$1.83") {
 		t.Error("projects tab should contain cost per project")
@@ -173,15 +173,15 @@ func TestDashboardViewTabs(t *testing.T) {
 	d.tab = 4
 	d.costView = "g"
 	view = d.View()
-	if !strings.Contains(view.Content, "jour") {
-		t.Error("costs tab graph should contain 'jour'")
+	if !strings.Contains(view.Content, "Daily Cost") {
+		t.Error("costs tab graph should contain 'Daily Cost'")
 	}
 
 	// Costs - table
 	d.costView = "t"
 	view = d.View()
-	if !strings.Contains(view.Content, "journalier") {
-		t.Error("costs tab table should contain 'journalier'")
+	if !strings.Contains(view.Content, "Daily Costs") {
+		t.Error("costs tab table should contain 'Daily Costs'")
 	}
 	if !strings.Contains(view.Content, "Mar") {
 		t.Error("costs tab table should contain date")
@@ -199,11 +199,11 @@ func TestDashboardViewTabs(t *testing.T) {
 	if !strings.Contains(view.Content, "gemini") {
 		t.Error("sources tab should contain 'gemini'")
 	}
-	if !strings.Contains(view.Content, "Comparatif") {
-		t.Error("sources tab should contain 'Comparatif'")
+	if !strings.Contains(view.Content, "Comparison") {
+		t.Error("sources tab should contain 'Comparison'")
 	}
 
-	// Modèles
+	// Models
 	d.tab = 6
 	view = d.View()
 	if !strings.Contains(view.Content, "claude-opus") {
@@ -225,6 +225,7 @@ func TestFmtNum(t *testing.T) {
 		{500, "500"},
 		{1500, "1.5K"},
 		{2340000, "2.3M"},
+		{1500000000, "1.5B"},
 	}
 	for _, tt := range tests {
 		got := fmtNum(tt.input)
@@ -282,8 +283,8 @@ func TestViewSources(t *testing.T) {
 	content := view.Content
 
 	// Check header
-	if !strings.Contains(content, "Comparatif par source") {
-		t.Error("viewSources should contain 'Comparatif par source' header")
+	if !strings.Contains(content, "Comparison by Source") {
+		t.Error("viewSources should contain 'Comparison by Source' header")
 	}
 
 	// Check sources are present
@@ -316,8 +317,8 @@ func TestViewModels(t *testing.T) {
 	content := view.Content
 
 	// Check header
-	if !strings.Contains(content, "Modles par source") && !strings.Contains(content, "Modèles par source") {
-		t.Error("viewModels should contain 'Modèles par source' header")
+	if !strings.Contains(content, "Models by Source") {
+		t.Error("viewModels should contain 'Models by Source' header")
 	}
 
 	// Check models are present from different sources
@@ -350,21 +351,21 @@ func TestViewCostsGraph(t *testing.T) {
 	content := view.Content
 
 	// Check summary panels
-	if !strings.Contains(content, "Aujourd'hui") {
-		t.Error("viewCosts graph should contain 'Aujourd'hui' summary")
+	if !strings.Contains(content, "Today") {
+		t.Error("viewCosts graph should contain 'Today' summary")
 	}
-	if !strings.Contains(content, "Semaine") {
-		t.Error("viewCosts graph should contain 'Semaine' summary")
+	if !strings.Contains(content, "Week") {
+		t.Error("viewCosts graph should contain 'Week' summary")
 	}
-	if !strings.Contains(content, "Total (60j)") {
-		t.Error("viewCosts graph should contain 'Total (60j)' summary")
+	if !strings.Contains(content, "Total (60d)") {
+		t.Error("viewCosts graph should contain 'Total (60d)' summary")
 	}
 
 	// Check graph elements
-	if !strings.Contains(content, "jour") {
-		t.Error("viewCosts graph should contain 'jour' in header")
+	if !strings.Contains(content, "Daily Cost") {
+		t.Error("viewCosts graph should contain 'Daily Cost' in header")
 	}
-	if !strings.Contains(content, "graphique") {
+	if !strings.Contains(content, "graph") {
 		t.Error("viewCosts graph should indicate graph view is active")
 	}
 
@@ -387,8 +388,8 @@ func TestViewCostsTable(t *testing.T) {
 	content := view.Content
 
 	// Check table header
-	if !strings.Contains(content, "journalier") && !strings.Contains(content, "Journaliers") {
-		t.Error("viewCosts table should contain journalier header")
+	if !strings.Contains(content, "Daily Costs") {
+		t.Error("viewCosts table should contain 'Daily Costs' header")
 	}
 
 	// Check column headers (headers contain sort key indicators like "(d)ate")
@@ -417,7 +418,7 @@ func TestViewCostsTable(t *testing.T) {
 	}
 
 	// Check table view indicator
-	if !strings.Contains(content, "tableau") {
+	if !strings.Contains(content, "table") {
 		t.Error("viewCosts table should indicate table view is active")
 	}
 }
@@ -434,17 +435,17 @@ func TestViewOverview(t *testing.T) {
 	content := view.Content
 
 	// Check main panels exist
-	if !strings.Contains(content, "Activit") && !strings.Contains(content, "Activité") {
-		t.Error("viewOverview should contain 'Activité' panel")
+	if !strings.Contains(content, "Activity") {
+		t.Error("viewOverview should contain 'Activity' panel")
 	}
-	if !strings.Contains(content, "Cette semaine") {
-		t.Error("viewOverview should contain 'Cette semaine' panel")
+	if !strings.Contains(content, "This Week") {
+		t.Error("viewOverview should contain 'This Week' panel")
 	}
 	if !strings.Contains(content, "Tokens") {
 		t.Error("viewOverview should contain 'Tokens' panel")
 	}
-	if !strings.Contains(content, "Sant") && !strings.Contains(content, "Santé") {
-		t.Error("viewOverview should contain 'Santé' panel")
+	if !strings.Contains(content, "Health") {
+		t.Error("viewOverview should contain 'Health' panel")
 	}
 
 	// Check Sources panel exists
@@ -452,9 +453,9 @@ func TestViewOverview(t *testing.T) {
 		t.Error("viewOverview should contain 'Sources' panel")
 	}
 
-	// Check Modèles panel exists
-	if !strings.Contains(content, "Modles") && !strings.Contains(content, "Modèles") {
-		t.Error("viewOverview should contain 'Modèles' panel")
+	// Check Models panel exists
+	if !strings.Contains(content, "Models") {
+		t.Error("viewOverview should contain 'Models' panel")
 	}
 
 	// Check sources are listed in Sources panel
@@ -484,34 +485,34 @@ func TestViewStatus(t *testing.T) {
 	// Test default help text for non-costs tab
 	d.tab = 0
 	view := d.View()
-	if !strings.Contains(view.Content, "onglets") {
-		t.Error("viewStatus should contain 'onglets' for default tabs")
+	if !strings.Contains(view.Content, "tabs") {
+		t.Error("viewStatus should contain 'tabs' for default tabs")
 	}
-	if !strings.Contains(view.Content, "dfiler") && !strings.Contains(view.Content, "défiler") {
-		t.Error("viewStatus should contain 'défiler' for scroll help")
+	if !strings.Contains(view.Content, "scroll") {
+		t.Error("viewStatus should contain 'scroll' for scroll help")
 	}
-	if !strings.Contains(view.Content, "recharger") {
-		t.Error("viewStatus should contain 'recharger' for reload help")
+	if !strings.Contains(view.Content, "reload") {
+		t.Error("viewStatus should contain 'reload' for reload help")
 	}
 
 	// Test help text for costs tab (tab 4)
 	d.tab = 4
 	view = d.View()
-	if !strings.Contains(view.Content, "graphique") {
-		t.Error("viewStatus should contain 'graphique' for costs tab")
+	if !strings.Contains(view.Content, "graph") {
+		t.Error("viewStatus should contain 'graph' for costs tab")
 	}
-	if !strings.Contains(view.Content, "tableau") {
-		t.Error("viewStatus should contain 'tableau' for costs tab")
+	if !strings.Contains(view.Content, "table") {
+		t.Error("viewStatus should contain 'table' for costs tab")
 	}
 
 	// Test help text for other tabs
 	d.tab = 1 // Sessions
 	view = d.View()
-	if !strings.Contains(view.Content, "onglets") {
-		t.Error("viewStatus should contain 'onglets' for sessions tab")
+	if !strings.Contains(view.Content, "tabs") {
+		t.Error("viewStatus should contain 'tabs' for sessions tab")
 	}
-	if !strings.Contains(view.Content, "quitter") {
-		t.Error("viewStatus should contain 'quitter' for quit help")
+	if !strings.Contains(view.Content, "quit") {
+		t.Error("viewStatus should contain 'quit' for quit help")
 	}
 }
 
@@ -524,7 +525,7 @@ func TestViewLoadingState(t *testing.T) {
 	view := d.View()
 	content := view.Content
 
-	if !strings.Contains(content, "Chargement") {
+	if !strings.Contains(content, "Loading") {
 		t.Error("View should show loading message when loading=true")
 	}
 	if !strings.Contains(content, "conversations") {
@@ -542,10 +543,10 @@ func TestViewNilStats(t *testing.T) {
 	view := d.View()
 	content := view.Content
 
-	if !strings.Contains(content, "Impossible") {
+	if !strings.Contains(content, "Failed") {
 		t.Error("View should show error message when stats is nil")
 	}
-	if !strings.Contains(content, "charger") {
+	if !strings.Contains(content, "load") {
 		t.Error("View should mention inability to load data")
 	}
 }
@@ -560,8 +561,8 @@ func TestViewSmallTerminal(t *testing.T) {
 	view := d.View()
 	content := view.Content
 
-	if !strings.Contains(content, "petit") || !strings.Contains(content, "Terminal") {
-		t.Error("View should show 'Terminal trop petit' message for small terminals")
+	if !strings.Contains(content, "too small") || !strings.Contains(content, "Terminal") {
+		t.Error("View should show 'Terminal too small' message for small terminals")
 	}
 }
 
@@ -788,20 +789,20 @@ func TestToggleSort(t *testing.T) {
 	d := NewDashboard()
 
 	// Test: toggling same column flips asc/desc
-	d.sortSessions = sortOrder{col: "projet", asc: false}
-	d.toggleSort(&d.sortSessions, "projet")
-	if d.sortSessions.col != "projet" || !d.sortSessions.asc {
-		t.Errorf("expected col=projet, asc=true after toggle, got col=%s, asc=%v", d.sortSessions.col, d.sortSessions.asc)
+	d.sortSessions = sortOrder{col: "project", asc: false}
+	d.toggleSort(&d.sortSessions, "project")
+	if d.sortSessions.col != "project" || !d.sortSessions.asc {
+		t.Errorf("expected col=project, asc=true after toggle, got col=%s, asc=%v", d.sortSessions.col, d.sortSessions.asc)
 	}
 
 	// Toggle again should flip back to desc
-	d.toggleSort(&d.sortSessions, "projet")
-	if d.sortSessions.col != "projet" || d.sortSessions.asc {
-		t.Errorf("expected col=projet, asc=false after second toggle, got col=%s, asc=%v", d.sortSessions.col, d.sortSessions.asc)
+	d.toggleSort(&d.sortSessions, "project")
+	if d.sortSessions.col != "project" || d.sortSessions.asc {
+		t.Errorf("expected col=project, asc=false after second toggle, got col=%s, asc=%v", d.sortSessions.col, d.sortSessions.asc)
 	}
 
 	// Test: new column resets to desc
-	d.sortSessions = sortOrder{col: "projet", asc: true}
+	d.sortSessions = sortOrder{col: "project", asc: true}
 	d.toggleSort(&d.sortSessions, "msgs")
 	if d.sortSessions.col != "msgs" || d.sortSessions.asc {
 		t.Errorf("expected col=msgs, asc=false for new column, got col=%s, asc=%v", d.sortSessions.col, d.sortSessions.asc)
@@ -821,10 +822,10 @@ func TestSortIndicator(t *testing.T) {
 		col      string
 		expected string
 	}{
-		{sortOrder{col: "projet", asc: false}, "projet", " \u25bc"}, // descending arrow
-		{sortOrder{col: "projet", asc: true}, "projet", " \u25b2"},  // ascending arrow
-		{sortOrder{col: "projet", asc: false}, "msgs", ""},         // different column
-		{sortOrder{col: "projet", asc: true}, "msgs", ""},          // different column
+		{sortOrder{col: "project", asc: false}, "project", " \u25bc"}, // descending arrow
+		{sortOrder{col: "project", asc: true}, "project", " \u25b2"},  // ascending arrow
+		{sortOrder{col: "project", asc: false}, "msgs", ""},           // different column
+		{sortOrder{col: "project", asc: true}, "msgs", ""},            // different column
 	}
 
 	for _, tt := range tests {
@@ -842,8 +843,8 @@ func TestHandleSortKey(t *testing.T) {
 	// Sessions tab (1): p/m/t/o/d
 	d.tab = 1
 	d.handleSortKey("p")
-	if d.sortSessions.col != "projet" {
-		t.Errorf("Sessions: key 'p' should set col to 'projet', got %s", d.sortSessions.col)
+	if d.sortSessions.col != "project" {
+		t.Errorf("Sessions: key 'p' should set col to 'project', got %s", d.sortSessions.col)
 	}
 	d.handleSortKey("m")
 	if d.sortSessions.col != "msgs" {
@@ -858,19 +859,19 @@ func TestHandleSortKey(t *testing.T) {
 		t.Errorf("Sessions: key 'o' should set col to 'tokens', got %s", d.sortSessions.col)
 	}
 	d.handleSortKey("d")
-	if d.sortSessions.col != "duree" {
-		t.Errorf("Sessions: key 'd' should set col to 'duree', got %s", d.sortSessions.col)
+	if d.sortSessions.col != "duration" {
+		t.Errorf("Sessions: key 'd' should set col to 'duration', got %s", d.sortSessions.col)
 	}
 
-	// Tools tab (2): o/a/%
+	// Tools tab (2): t/c/%
 	d.tab = 2
-	d.handleSortKey("o")
-	if d.sortTools.col != "outil" {
-		t.Errorf("Tools: key 'o' should set col to 'outil', got %s", d.sortTools.col)
+	d.handleSortKey("t")
+	if d.sortTools.col != "tool" {
+		t.Errorf("Tools: key 't' should set col to 'tool', got %s", d.sortTools.col)
 	}
-	d.handleSortKey("a")
-	if d.sortTools.col != "appels" {
-		t.Errorf("Tools: key 'a' should set col to 'appels', got %s", d.sortTools.col)
+	d.handleSortKey("c")
+	if d.sortTools.col != "calls" {
+		t.Errorf("Tools: key 'c' should set col to 'calls', got %s", d.sortTools.col)
 	}
 	d.handleSortKey("%")
 	if d.sortTools.col != "pct" {
@@ -880,8 +881,8 @@ func TestHandleSortKey(t *testing.T) {
 	// Projects tab (3): p/s/m/t/c
 	d.tab = 3
 	d.handleSortKey("p")
-	if d.sortProjects.col != "projet" {
-		t.Errorf("Projects: key 'p' should set col to 'projet', got %s", d.sortProjects.col)
+	if d.sortProjects.col != "project" {
+		t.Errorf("Projects: key 'p' should set col to 'project', got %s", d.sortProjects.col)
 	}
 	d.handleSortKey("s")
 	if d.sortProjects.col != "sessions" {
@@ -896,8 +897,8 @@ func TestHandleSortKey(t *testing.T) {
 		t.Errorf("Projects: key 't' should set col to 'tokens', got %s", d.sortProjects.col)
 	}
 	d.handleSortKey("c")
-	if d.sortProjects.col != "cout" {
-		t.Errorf("Projects: key 'c' should set col to 'cout', got %s", d.sortProjects.col)
+	if d.sortProjects.col != "cost" {
+		t.Errorf("Projects: key 'c' should set col to 'cost', got %s", d.sortProjects.col)
 	}
 
 	// Models tab (6): m/s/g/i/o/h/c
@@ -927,8 +928,8 @@ func TestHandleSortKey(t *testing.T) {
 		t.Errorf("Models: key 'h' should set col to 'cache', got %s", d.sortModels.col)
 	}
 	d.handleSortKey("c")
-	if d.sortModels.col != "cout" {
-		t.Errorf("Models: key 'c' should set col to 'cout', got %s", d.sortModels.col)
+	if d.sortModels.col != "cost" {
+		t.Errorf("Models: key 'c' should set col to 'cost', got %s", d.sortModels.col)
 	}
 
 	// Costs tab (4): d/s/m/i/o/c
@@ -955,8 +956,8 @@ func TestHandleSortKey(t *testing.T) {
 		t.Errorf("Costs: key 'o' should set col to 'output', got %s", d.sortCosts.col)
 	}
 	d.handleSortKey("c")
-	if d.sortCosts.col != "cout" {
-		t.Errorf("Costs: key 'c' should set col to 'cout', got %s", d.sortCosts.col)
+	if d.sortCosts.col != "cost" {
+		t.Errorf("Costs: key 'c' should set col to 'cost', got %s", d.sortCosts.col)
 	}
 }
 
@@ -984,8 +985,8 @@ func TestSessionsSortOrder(t *testing.T) {
 		t.Error("Sessions view (asc) should contain gemini-proj")
 	}
 
-	// Sort by projet (name) ascending
-	d.sortSessions = sortOrder{col: "projet", asc: true}
+	// Sort by project (name) ascending
+	d.sortSessions = sortOrder{col: "project", asc: true}
 	viewProj := d.viewSessions(120)
 	if !strings.Contains(viewProj, "gemini-proj") { // alphabetically first
 		t.Error("Sessions sorted by projet asc should have gemini-proj first")
@@ -1000,15 +1001,15 @@ func TestToolsSortOrder(t *testing.T) {
 	d.height = 40
 	d.tab = 2
 
-	// Sort by appels descending (highest count first)
-	d.sortTools = sortOrder{col: "appels", asc: false}
+	// Sort by calls descending (highest count first)
+	d.sortTools = sortOrder{col: "calls", asc: false}
 	view := d.viewTools(120)
 	if !strings.Contains(view, "Read") {
 		t.Error("Tools view should contain 'Read'")
 	}
 
-	// Sort by outil (name) ascending
-	d.sortTools = sortOrder{col: "outil", asc: true}
+	// Sort by tool (name) ascending
+	d.sortTools = sortOrder{col: "tool", asc: true}
 	viewName := d.viewTools(120)
 	if !strings.Contains(viewName, "Bash") {
 		t.Error("Tools view sorted by name should contain 'Bash'")
@@ -1030,15 +1031,15 @@ func TestProjectsSortOrder(t *testing.T) {
 		t.Error("Projects view should contain 'test-proj'")
 	}
 
-	// Sort by projet (name) ascending
-	d.sortProjects = sortOrder{col: "projet", asc: true}
+	// Sort by project (name) ascending
+	d.sortProjects = sortOrder{col: "project", asc: true}
 	viewName := d.viewProjects(120)
 	if !strings.Contains(viewName, "other-proj") { // alphabetically first
 		t.Error("Projects sorted by name asc should have 'other-proj' first")
 	}
 
 	// Sort by cost descending
-	d.sortProjects = sortOrder{col: "cout", asc: false}
+	d.sortProjects = sortOrder{col: "cost", asc: false}
 	viewCost := d.viewProjects(120)
 	if !strings.Contains(viewCost, "$1.83") {
 		t.Error("Projects sorted by cost should show $1.83")
@@ -1106,24 +1107,24 @@ func TestViewNetwork(t *testing.T) {
 	content := view.Content
 
 	// Check panel headers
-	if !strings.Contains(content, "Cette machine") {
-		t.Error("viewNetwork should contain 'Cette machine' panel")
+	if !strings.Contains(content, "This Machine") {
+		t.Error("viewNetwork should contain 'This Machine' panel")
 	}
-	if !strings.Contains(content, "Total agrg") && !strings.Contains(content, "Total agrégé") {
-		t.Error("viewNetwork should contain 'Total agrégé' panel")
+	if !strings.Contains(content, "Aggregated Total") {
+		t.Error("viewNetwork should contain 'Aggregated Total' panel")
 	}
-	if !strings.Contains(content, "Machines distantes") {
-		t.Error("viewNetwork should contain 'Machines distantes' panel")
+	if !strings.Contains(content, "Remote Machines") {
+		t.Error("viewNetwork should contain 'Remote Machines' panel")
 	}
 
 	// Check for local stats
-	if !strings.Contains(content, "Sessions locales") {
-		t.Error("viewNetwork should contain 'Sessions locales'")
+	if !strings.Contains(content, "Local sessions") {
+		t.Error("viewNetwork should contain 'Local sessions'")
 	}
 
 	// Check for no peers message
-	if !strings.Contains(content, "Aucun peer") {
-		t.Error("viewNetwork should show 'Aucun peer configuré' when no peers added")
+	if !strings.Contains(content, "No peers") {
+		t.Error("viewNetwork should show 'No peers configured' when no peers added")
 	}
 }
 

@@ -21,7 +21,11 @@ func main() {
 
 	// Start HTTP server in background
 	statsProvider := func() interface{} {
-		return d.GetLocalStats()
+		stats := d.GetLocalStats()
+		if stats == nil {
+			return nil
+		}
+		return stats
 	}
 	srv := server.New(*port, statsProvider)
 	go func() {
@@ -33,7 +37,7 @@ func main() {
 	// Run TUI
 	p := tea.NewProgram(d)
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Erreur: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

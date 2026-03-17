@@ -61,9 +61,7 @@ func NewDashboard() Dashboard {
 	}
 
 	// Initialize peer storage
-	if storage, err := peer.NewStorage(); err == nil {
-		d.peerStorage = storage
-	}
+	d.peerStorage = peer.NewStorage()
 
 	// Detect local IP
 	d.myIP = getLocalIP()
@@ -172,7 +170,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (d Dashboard) View() tea.View {
 	if d.width < 40 {
-		v := tea.NewView("Terminal trop petit")
+		v := tea.NewView("Terminal too small")
 		v.AltScreen = true
 		return v
 	}
@@ -182,7 +180,7 @@ func (d Dashboard) View() tea.View {
 			lipgloss.JoinVertical(lipgloss.Left,
 				headerStyle.Render(" Claude Monitor "),
 				"",
-				labelStyle.Render("Chargement des conversations..."),
+				labelStyle.Render("Loading conversations..."),
 			),
 		)
 		v := tea.NewView(s)
@@ -192,7 +190,7 @@ func (d Dashboard) View() tea.View {
 
 	if d.stats == nil {
 		s := lipgloss.NewStyle().Padding(2, 4).Render(
-			errValStyle.Render("Impossible de charger les données Claude"),
+			errValStyle.Render("Failed to load Claude data"),
 		)
 		v := tea.NewView(s)
 		v.AltScreen = true
@@ -242,7 +240,7 @@ func (d Dashboard) View() tea.View {
 }
 
 func (d Dashboard) viewTabs() string {
-	tabs := []string{"1:Overview", "2:Sessions", "3:Outils", "4:Projets", "5:Coûts", "6:Sources", "7:Modèles", "8:Réseau"}
+	tabs := []string{"1:Overview", "2:Sessions", "3:Tools", "4:Projects", "5:Costs", "6:Sources", "7:Models", "8:Network"}
 	var parts []string
 	for i, t := range tabs {
 		if i == d.tab {
@@ -267,27 +265,27 @@ func (d Dashboard) viewOverview(w int) string {
 		halfW = 30
 	}
 
-	// Activité
+	// Activity
 	activeLabel := bigNumStyle.Render(fmt.Sprintf("%d", s.ActiveSessions))
 	if s.ActiveSessions == 0 {
 		activeLabel = labelStyle.Render("0")
 	}
 
-	activity := d.panel("Activité", thirdW,
-		kv{"Sessions actives", activeLabel},
+	activity := d.panel("Activity", thirdW,
+		kv{"Active sessions", activeLabel},
 		kv{"", ""},
-		kv{"Aujourd'hui", ""},
+		kv{"Today", ""},
 		kv{"  Sessions", bigNumStyle.Render(fmt.Sprintf("%d", s.TodaySessions))},
 		kv{"  Messages", valueStyle.Render(fmtNum(s.TodayMessages))},
 		kv{"  Tokens", valueStyle.Render(fmtNum(s.TodayTokens))},
 	)
 
-	thisWeek := d.panel("Cette semaine", thirdW,
+	thisWeek := d.panel("This Week", thirdW,
 		kv{"Sessions", bigNumStyle.Render(fmt.Sprintf("%d", s.WeekSessions))},
 		kv{"Messages", valueStyle.Render(fmtNum(s.WeekMessages))},
 		kv{"Tokens", valueStyle.Render(fmtNum(s.WeekTokens))},
 		kv{"", ""},
-		kv{"Tout temps", ""},
+		kv{"All time", ""},
 		kv{"  Sessions", labelStyle.Render(fmt.Sprintf("%d", s.TotalSessions))},
 	)
 
@@ -299,31 +297,31 @@ func (d Dashboard) viewOverview(w int) string {
 		cacheRate = float64(s.TotalCacheRead) / float64(totalInput) * 100
 	}
 
-	tokens := d.panel("Tokens (tout temps)", thirdW,
+	tokens := d.panel("Tokens (all time)", thirdW,
 		kv{"Total", bigNumStyle.Render(fmtNum(totalTokens))},
 		kv{"Input", valueStyle.Render(fmtNum(totalInput))},
 		kv{"Output", valueStyle.Render(fmtNum(s.TotalOutputTokens))},
-		kv{"Cache lu", cyanStyle.Render(fmtNum(s.TotalCacheRead))},
-		kv{"Taux cache", d.colorCacheRate(cacheRate)},
-		kv{"Coût estimé", orangeStyle.Render(fmt.Sprintf("~$%.2f", s.TotalCost))},
+		kv{"Cache read", cyanStyle.Render(fmtNum(s.TotalCacheRead))},
+		kv{"Cache rate", d.colorCacheRate(cacheRate)},
+		kv{"Estimated cost", orangeStyle.Render(fmt.Sprintf("~$%.2f", s.TotalCost))},
 	)
 
 	topRow := lipgloss.JoinHorizontal(lipgloss.Top, activity, " ", thisWeek, " ", tokens)
 
-	// Métriques secondaires
+	// Secondary metrics
 	errRate := 0.0
 	if s.TotalToolUses > 0 {
 		errRate = float64(s.TotalToolErrors) / float64(s.TotalToolUses) * 100
 	}
 
-	secondary := d.panel("Santé", halfW,
-		kv{"Modèle principal", cyanStyle.Render(s.ActiveModel)},
-		kv{"Appels outils", valueStyle.Render(fmtNum(s.TotalToolUses))},
-		kv{"Erreurs outils", d.colorErrors(s.TotalToolErrors)},
-		kv{"Taux erreur", d.colorErrorRate(errRate)},
+	secondary := d.panel("Health", halfW,
+		kv{"Primary model", cyanStyle.Render(s.ActiveModel)},
+		kv{"Tool calls", valueStyle.Render(fmtNum(s.TotalToolUses))},
+		kv{"Tool errors", d.colorErrors(s.TotalToolErrors)},
+		kv{"Error rate", d.colorErrorRate(errRate)},
 	)
 
-	// Modèles
+	// Models
 	type modelEntry struct {
 		name  string
 		count int
@@ -337,7 +335,7 @@ func (d Dashboard) viewOverview(w int) string {
 	sort.Slice(models, func(i, j int) bool { return models[i].count > models[j].count })
 
 	modelRows := []kv{
-		kv{"Total", valueStyle.Render(fmt.Sprintf("%d modèles", len(models)))},
+		kv{"Total", valueStyle.Render(fmt.Sprintf("%d models", len(models)))},
 		kv{"", ""},
 	}
 	top := min(3, len(models))
@@ -350,7 +348,7 @@ func (d Dashboard) viewOverview(w int) string {
 			labelStyle.Render(fmt.Sprintf("(%.0f%%)", pct)),
 		)})
 	}
-	modelsPanel := d.panel("Modèles", halfW, modelRows...)
+	modelsPanel := d.panel("Models", halfW, modelRows...)
 
 	midRow := lipgloss.JoinHorizontal(lipgloss.Top, secondary, " ", modelsPanel)
 
@@ -391,7 +389,7 @@ func (d Dashboard) viewOverview(w int) string {
 		colSrc, "Source",
 		colSess, "Sess.",
 		colMsgs, "Msgs",
-		colCost, "Coût",
+		colCost, "Cost",
 	)
 	srcTableRows = append(srcTableRows, tableHeaderStyle.Render(srcHeader))
 	srcTableRows = append(srcTableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colCost+6)))
@@ -425,11 +423,11 @@ func (d Dashboard) viewSessions(w int) string {
 	colMsgs := 7
 	colTools := 7
 	colTokens := 7
-	colDuree := 7
-	fixedCols := colMsgs + colTools + colTokens + colDuree + 10
-	colProjet := max(16, w-fixedCols-4)
+	colDuration := 7
+	fixedCols := colMsgs + colTools + colTokens + colDuration + 10
+	colProject := max(16, w-fixedCols-4)
 
-	// Tri
+	// Sort
 	sessions := make([]data.Session, len(s.Sessions))
 	copy(sessions, s.Sessions)
 	so := d.sortSessions
@@ -437,7 +435,7 @@ func (d Dashboard) viewSessions(w int) string {
 		a, b := sessions[i], sessions[j]
 		less := false
 		switch so.col {
-		case "projet":
+		case "project":
 			less = a.Project < b.Project
 		case "msgs":
 			less = (a.UserMessages + a.AssistantMessages) < (b.UserMessages + b.AssistantMessages)
@@ -448,7 +446,7 @@ func (d Dashboard) viewSessions(w int) string {
 			less = ta < tb
 		case "tokens":
 			less = (a.InputTokens + a.CacheReadTokens + a.OutputTokens) < (b.InputTokens + b.CacheReadTokens + b.OutputTokens)
-		case "duree":
+		case "duration":
 			less = a.TotalDuration < b.TotalDuration
 		}
 		if so.asc {
@@ -461,19 +459,19 @@ func (d Dashboard) viewSessions(w int) string {
 
 	si := sortIndicator
 	header := fmt.Sprintf("  %-*s %*s %*s %*s %*s",
-		colProjet, "(p)rojet"+si(so, "projet"),
+		colProject, "(p)roject"+si(so, "project"),
 		colMsgs, "(m)sgs"+si(so, "msgs"),
 		colTools, "(t)ools"+si(so, "tools"),
 		colTokens, "t(o)kens"+si(so, "tokens"),
-		colDuree, "(d)urée"+si(so, "duree"),
+		colDuration, "(d)uration"+si(so, "duration"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
-	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colProjet+colMsgs+colTools+colTokens+colDuree+6)))
+	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colProject+colMsgs+colTools+colTokens+colDuration+6)))
 
 	start, end := scrollRange(d.scroll, len(sessions), 15)
 
 	for _, sess := range sessions[start:end] {
-		proj := truncate(sess.Project, colProjet-2)
+		proj := truncate(sess.Project, colProject-2)
 
 		totalMsgs := sess.UserMessages + sess.AssistantMessages
 		totalTools := 0
@@ -483,24 +481,24 @@ func (d Dashboard) viewSessions(w int) string {
 		totalTokens := sess.InputTokens + sess.CacheReadTokens + sess.OutputTokens
 
 		row := fmt.Sprintf("  %-*s %*d %*d %*s %*s",
-			colProjet, proj,
+			colProject, proj,
 			colMsgs, totalMsgs,
 			colTools, totalTools,
 			colTokens, fmtNum(totalTokens),
-			colDuree, fmtDuration(sess.TotalDuration),
+			colDuration, fmtDuration(sess.TotalDuration),
 		)
 		rows = append(rows, row)
 	}
 
 	if len(sessions) > 15 {
 		rows = append(rows, "")
-		rows = append(rows, labelStyle.Render(fmt.Sprintf("  %d/%d sessions (j/k pour défiler)", min(end, len(sessions)), len(sessions))))
+		rows = append(rows, labelStyle.Render(fmt.Sprintf("  %d/%d sessions (j/k to scroll)", min(end, len(sessions)), len(sessions))))
 	}
 
 	content := strings.Join(rows, "\n")
 	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Sessions récentes"),
+			panelTitleStyle.Render("Recent Sessions"),
 			content,
 		),
 	)
@@ -523,9 +521,9 @@ func (d Dashboard) viewTools(w int) string {
 	sort.Slice(tools, func(i, j int) bool {
 		less := false
 		switch so.col {
-		case "outil":
+		case "tool":
 			less = tools[i].name < tools[j].name
-		case "appels", "pct":
+		case "calls", "pct":
 			less = tools[i].count < tools[j].count
 		}
 		if so.asc {
@@ -542,8 +540,8 @@ func (d Dashboard) viewTools(w int) string {
 
 	si := sortIndicator
 	header := fmt.Sprintf("  %-*s %*s %*s  %s",
-		colTool, "(o)util"+si(so, "outil"),
-		colCall, "(a)ppels"+si(so, "appels"),
+		colTool, "(t)ool"+si(so, "tool"),
+		colCall, "(c)alls"+si(so, "calls"),
 		colPct, "(%)"+si(so, "pct"),
 		"Distribution",
 	)
@@ -563,7 +561,7 @@ func (d Dashboard) viewTools(w int) string {
 	}
 
 	rows = append(rows, "")
-	rows = append(rows, fmt.Sprintf("  Total: %s appels  •  Erreurs: %d",
+	rows = append(rows, fmt.Sprintf("  Total: %s calls  •  Errors: %d",
 		fmtNum(s.TotalToolUses),
 		s.TotalToolErrors,
 	))
@@ -571,7 +569,7 @@ func (d Dashboard) viewTools(w int) string {
 	content := strings.Join(rows, "\n")
 	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Utilisation des outils"),
+			panelTitleStyle.Render("Tool Usage"),
 			content,
 		),
 	)
@@ -582,15 +580,15 @@ func (d Dashboard) viewTools(w int) string {
 func (d Dashboard) viewProjects(w int) string {
 	s := d.stats
 
-	colSessions := 7
-	colMessages := 7
-	colTokens := 7
+	colSessions := 8
+	colMessages := 8
+	colTokens := 8
 	colCost := 8
 	fixedCols := colSessions + colMessages + colTokens + colCost + 10
 	colName := max(16, w-fixedCols-4)
 	tableMin := colName + fixedCols
 
-	// Tri
+	// Sort
 	projects := make([]data.ProjectSummary, len(s.Projects))
 	copy(projects, s.Projects)
 	so := d.sortProjects
@@ -598,7 +596,7 @@ func (d Dashboard) viewProjects(w int) string {
 		a, b := projects[i], projects[j]
 		less := false
 		switch so.col {
-		case "projet":
+		case "project":
 			less = a.Name < b.Name
 		case "sessions":
 			less = a.Sessions < b.Sessions
@@ -606,7 +604,7 @@ func (d Dashboard) viewProjects(w int) string {
 			less = a.Messages < b.Messages
 		case "tokens":
 			less = a.Tokens < b.Tokens
-		case "cout":
+		case "cost":
 			less = a.Cost < b.Cost
 		}
 		if so.asc {
@@ -619,11 +617,11 @@ func (d Dashboard) viewProjects(w int) string {
 
 	si := sortIndicator
 	header := fmt.Sprintf("  %-*s %*s %*s %*s %*s",
-		colName, "(p)rojet"+si(so, "projet"),
-		colSessions, "(s)essions"+si(so, "sessions"),
-		colMessages, "(m)essages"+si(so, "messages"),
+		colName, "(p)roject"+si(so, "project"),
+		colSessions, "(s)ess."+si(so, "sessions"),
+		colMessages, "(m)sgs"+si(so, "messages"),
 		colTokens, "(t)okens"+si(so, "tokens"),
-		colCost, "(c)oût"+si(so, "cout"),
+		colCost, "(c)ost"+si(so, "cost"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
 	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", tableMin)))
@@ -661,19 +659,19 @@ func (d Dashboard) viewProjects(w int) string {
 	content := strings.Join(rows, "\n")
 	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Projets"),
+			panelTitleStyle.Render("Projects"),
 			content,
 		),
 	)
 }
 
-// --- Tab 4: Coûts ---
+// --- Tab 4: Costs ---
 
 func (d Dashboard) viewCosts(w int) string {
 	s := d.stats
 	days := s.DailyCosts
 
-	// Résumé en haut
+	// Summary
 	todayCost := 0.0
 	weekCost := 0.0
 	now := time.Now()
@@ -697,14 +695,14 @@ func (d Dashboard) viewCosts(w int) string {
 		thirdW = 20
 	}
 
-	summaryToday := d.panel("Aujourd'hui", thirdW,
-		kv{"Coût", orangeStyle.Render(fmt.Sprintf("$%.2f", todayCost))},
+	summaryToday := d.panel("Today", thirdW,
+		kv{"Cost", orangeStyle.Render(fmt.Sprintf("$%.2f", todayCost))},
 	)
-	summaryWeek := d.panel("Semaine", thirdW,
-		kv{"Coût", orangeStyle.Render(fmt.Sprintf("$%.2f", weekCost))},
+	summaryWeek := d.panel("Week", thirdW,
+		kv{"Cost", orangeStyle.Render(fmt.Sprintf("$%.2f", weekCost))},
 	)
-	summaryTotal := d.panel("Total (60j)", thirdW,
-		kv{"Coût", orangeStyle.Render(fmt.Sprintf("$%.2f", s.TotalCost))},
+	summaryTotal := d.panel("Total (60d)", thirdW,
+		kv{"Cost", orangeStyle.Render(fmt.Sprintf("$%.2f", s.TotalCost))},
 	)
 	summaryRow := lipgloss.JoinHorizontal(lipgloss.Top, summaryToday, " ", summaryWeek, " ", summaryTotal)
 
@@ -715,14 +713,14 @@ func (d Dashboard) viewCosts(w int) string {
 		detail = d.viewCostTable(w, days)
 	}
 
-	toggle := labelStyle.Render("  (g): graphique  •  (t): tableau  •  actif: ") +
-		bigNumStyle.Render(map[string]string{"g": "graphique", "t": "tableau"}[d.costView])
+	toggle := labelStyle.Render("  (g): graph  •  (t): table  •  active: ") +
+		bigNumStyle.Render(map[string]string{"g": "graph", "t": "table"}[d.costView])
 
 	return lipgloss.JoinVertical(lipgloss.Left, summaryRow, "", detail, "", toggle)
 }
 
 func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
-	// Trouver le max pour le scaling
+	// Find max for scaling
 	maxCost := 0.0
 	for _, dc := range days {
 		if dc.Cost > maxCost {
@@ -734,16 +732,16 @@ func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
 	}
 
 	graphH := 15
-	graphW := w - 8 // marges du panel
+	graphW := w - 8 // panel margins
 
-	// Regrouper les jours pour tenir dans la largeur
-	// Chaque barre = 1 caractère + 0 espace
+	// Group days to fit the width
+	// Each bar = 1 character + 0 space
 	barCount := len(days)
 	if barCount > graphW {
 		barCount = graphW
 	}
 
-	// Si on a plus de jours que de colonnes, agréger
+	// If we have more days than columns, aggregate
 	type bar struct {
 		cost  float64
 		label string
@@ -763,7 +761,7 @@ func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
 		bars[i] = bar{cost: totalCost, label: lastDate.Format("02")}
 	}
 
-	// Recalculer le max après agrégation
+	// Recalculate max after aggregation
 	maxBar := 0.0
 	for _, b := range bars {
 		if b.cost > maxBar {
@@ -778,7 +776,7 @@ func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
 
 	var rows []string
 
-	// Axe Y (légende max)
+	// Y axis (max label)
 	yLabel := fmt.Sprintf("$%.1f", maxBar)
 	rows = append(rows, labelStyle.Render(fmt.Sprintf("%7s ┤", yLabel)))
 
@@ -793,7 +791,7 @@ func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
 			} else if b.cost > threshold+maxBar/float64(graphH) {
 				sb.WriteString(sparkStyle.Render("█"))
 			} else if b.cost > threshold {
-				// Barre partielle
+				// Partial bar
 				frac := (b.cost - threshold) / (maxBar / float64(graphH))
 				idx := int(frac * float64(len(blocks)-1))
 				if idx >= len(blocks) {
@@ -810,7 +808,7 @@ func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
 	// Axe X
 	rows = append(rows, labelStyle.Render("   $0.0 ┤")+labelStyle.Render(strings.Repeat("─", barCount)))
 
-	// Labels dates (début, milieu, fin)
+	// Date labels (start, middle, end)
 	if len(days) > 0 {
 		first := days[0].Date.Format("02 Jan")
 		last := days[len(days)-1].Date.Format("02 Jan")
@@ -838,7 +836,7 @@ func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
 	content := strings.Join(rows, "\n")
 	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Coût par jour (60 derniers jours)"),
+			panelTitleStyle.Render("Daily Cost (last 60 days)"),
 			content,
 		),
 	)
@@ -853,7 +851,7 @@ func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
 	colCache := 7
 	colCost := 8
 
-	// Tri
+	// Sort
 	sorted := make([]data.DayCost, len(days))
 	copy(sorted, days)
 	so := d.sortCosts
@@ -871,7 +869,7 @@ func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
 			less = a.InputTokens < b.InputTokens
 		case "output":
 			less = a.OutputTokens < b.OutputTokens
-		case "cout":
+		case "cost":
 			less = a.Cost < b.Cost
 		}
 		if so.asc {
@@ -890,7 +888,7 @@ func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
 		colInput, "(i)nput"+si(so, "input"),
 		colOutput, "(o)utput"+si(so, "output"),
 		colCache, "Cache R",
-		colCost, "(c)oût"+si(so, "cout"),
+		colCost, "(c)ost"+si(so, "cost"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
 	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colDate+colSessions+colMessages+colInput+colOutput+colCache+colCost+14)))
@@ -917,7 +915,7 @@ func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
 
 	if len(sorted) > 20 {
 		rows = append(rows, "")
-		rows = append(rows, labelStyle.Render(fmt.Sprintf("  %d/%d jours (j/k pour defiler)  -  Total: %s", min(end, len(sorted)), len(sorted), formatCost(totalCost))))
+		rows = append(rows, labelStyle.Render(fmt.Sprintf("  %d/%d days (j/k to scroll)  -  Total: %s", min(end, len(sorted)), len(sorted), formatCost(totalCost))))
 	} else {
 		rows = append(rows, "")
 		rows = append(rows, labelStyle.Render(fmt.Sprintf("  Total: %s", formatCost(totalCost))))
@@ -926,7 +924,7 @@ func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
 	content := strings.Join(rows, "\n")
 	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Coûts journaliers"),
+			panelTitleStyle.Render("Daily Costs"),
 			content,
 		),
 	)
@@ -987,7 +985,7 @@ func (d Dashboard) viewSources(w int) string {
 		colIn, "Input",
 		colOut, "Output",
 		colCache, "Cache",
-		colCost, "Coût",
+		colCost, "Cost",
 	)
 	tableRows = append(tableRows, tableHeaderStyle.Render(header))
 	tableRows = append(tableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colIn+colOut+colCache+colCost+12)))
@@ -1011,13 +1009,13 @@ func (d Dashboard) viewSources(w int) string {
 	content := strings.Join(tableRows, "\n")
 	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Comparatif par source"),
+			panelTitleStyle.Render("Comparison by Source"),
 			content,
 		),
 	)
 }
 
-// --- Tab 6: Modèles ---
+// --- Tab 6: Models ---
 
 func (d Dashboard) viewModels(w int) string {
 	s := d.stats
@@ -1080,7 +1078,7 @@ func (d Dashboard) viewModels(w int) string {
 			less = a.output < b.output
 		case "cache":
 			less = a.cache < b.cache
-		case "cout":
+		case "cost":
 			less = a.cost < b.cost
 		}
 		if so.asc {
@@ -1102,13 +1100,13 @@ func (d Dashboard) viewModels(w int) string {
 
 	si := sortIndicator
 	header := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s %*s",
-		colModel, "(m)odèle"+si(so, "model"),
+		colModel, "(m)odel"+si(so, "model"),
 		colSource, "(s)ource"+si(so, "source"),
 		colMsgs, "ms(g)s"+si(so, "msgs"),
 		colIn, "(i)nput"+si(so, "input"),
 		colOut, "(o)utput"+si(so, "output"),
 		colCache, "cac(h)e"+si(so, "cache"),
-		colCost, "(c)oût"+si(so, "cout"),
+		colCost, "(c)ost"+si(so, "cost"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
 	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colModel+colSource+colMsgs+colIn+colOut+colCache+colCost+12)))
@@ -1142,21 +1140,21 @@ func (d Dashboard) viewModels(w int) string {
 	content := strings.Join(rows, "\n")
 	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Modèles par source"),
+			panelTitleStyle.Render("Models by Source"),
 			content,
 		),
 	)
 }
 
-// --- Tab 7: Réseau ---
+// --- Tab 7: Network ---
 
 func (d Dashboard) viewNetwork(w int) string {
 	// My info panel
-	myInfo := d.panel("Cette machine", (w-2)/2,
-		kv{"Adresse", cyanStyle.Render(fmt.Sprintf("%s:%d", d.myIP, d.port))},
-		kv{"Sessions locales", valueStyle.Render(fmt.Sprintf("%d", d.localStats.TotalSessions))},
-		kv{"Tokens locaux", valueStyle.Render(fmtNum(d.localStats.TotalInputTokens+d.localStats.TotalOutputTokens))},
-		kv{"Coût local", orangeStyle.Render(fmt.Sprintf("$%.2f", d.localStats.TotalCost))},
+	myInfo := d.panel("This Machine", (w-2)/2,
+		kv{"Address", cyanStyle.Render(fmt.Sprintf("%s:%d", d.myIP, d.port))},
+		kv{"Local sessions", valueStyle.Render(fmt.Sprintf("%d", d.localStats.TotalSessions))},
+		kv{"Local tokens", valueStyle.Render(fmtNum(d.localStats.TotalInputTokens+d.localStats.TotalCacheRead+d.localStats.TotalOutputTokens))},
+		kv{"Local cost", orangeStyle.Render(fmt.Sprintf("$%.2f", d.localStats.TotalCost))},
 	)
 
 	// Aggregated info panel
@@ -1165,13 +1163,13 @@ func (d Dashboard) viewNetwork(w int) string {
 	aggCost := 0.0
 	if d.stats != nil {
 		aggSessions = d.stats.TotalSessions
-		aggTokens = d.stats.TotalInputTokens + d.stats.TotalOutputTokens
+		aggTokens = d.stats.TotalInputTokens + d.stats.TotalCacheRead + d.stats.TotalOutputTokens
 		aggCost = d.stats.TotalCost
 	}
-	aggInfo := d.panel("Total agrégé", (w-2)/2,
+	aggInfo := d.panel("Aggregated Total", (w-2)/2,
 		kv{"Sessions", bigNumStyle.Render(fmt.Sprintf("%d", aggSessions))},
 		kv{"Tokens", valueStyle.Render(fmtNum(aggTokens))},
-		kv{"Coût", orangeStyle.Render(fmt.Sprintf("$%.2f", aggCost))},
+		kv{"Cost", orangeStyle.Render(fmt.Sprintf("$%.2f", aggCost))},
 	)
 
 	topRow := lipgloss.JoinHorizontal(lipgloss.Top, myInfo, " ", aggInfo)
@@ -1184,8 +1182,8 @@ func (d Dashboard) viewNetwork(w int) string {
 	colTokens := 12
 
 	header := fmt.Sprintf("  %-*s %-*s %*s %*s",
-		colAddr, "Adresse",
-		colStatus, "Statut",
+		colAddr, "Address",
+		colStatus, "Status",
 		colSessions, "Sessions",
 		colTokens, "Tokens",
 	)
@@ -1193,7 +1191,7 @@ func (d Dashboard) viewNetwork(w int) string {
 	peerRows = append(peerRows, labelStyle.Render("  "+strings.Repeat("─", colAddr+colStatus+colSessions+colTokens+6)))
 
 	if len(d.peerStatuses) == 0 {
-		peerRows = append(peerRows, labelStyle.Render("  Aucun peer configuré. Appuyez sur 'a' pour ajouter."))
+		peerRows = append(peerRows, labelStyle.Render("  No peers configured. Press 'a' to add."))
 	} else {
 		for _, ps := range d.peerStatuses {
 			status := errValStyle.Render("offline")
@@ -1224,7 +1222,7 @@ func (d Dashboard) viewNetwork(w int) string {
 
 	peersPanel := panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Machines distantes"),
+			panelTitleStyle.Render("Remote Machines"),
 			strings.Join(peerRows, "\n"),
 		),
 	)
@@ -1253,13 +1251,10 @@ func (d *Dashboard) handleInput(key string) (tea.Model, tea.Cmd) {
 	case "enter":
 		if d.inputBuffer != "" && d.peerStorage != nil {
 			d.peerStorage.Add(d.inputBuffer)
-			d.peerStatuses = append(d.peerStatuses, peer.PeerStatus{
-				Address: d.inputBuffer,
-				Online:  false,
-			})
 		}
 		d.inputMode = false
 		d.inputBuffer = ""
+		d.fetchPeers()
 	case "backspace":
 		if len(d.inputBuffer) > 0 {
 			d.inputBuffer = d.inputBuffer[:len(d.inputBuffer)-1]
@@ -1313,10 +1308,10 @@ func (d *Dashboard) fetchPeers() {
 // --- Status ---
 
 func (d Dashboard) viewStatus(w int) string {
-	left := statusStyle.Render(fmt.Sprintf("Chargé: %s", d.stats.LastUpdated.Format("15:04:05")))
-	helpText := "◀ ▶/tab: onglets  •  j/k: défiler  •  r: recharger  •  q: quitter"
+	left := statusStyle.Render(fmt.Sprintf("Loaded: %s", d.stats.LastUpdated.Format("15:04:05")))
+	helpText := "◀ ▶/tab: tabs  •  j/k: scroll  •  r: reload  •  q: quit"
 	if d.tab == 4 {
-		helpText = "◀ ▶/tab: onglets  •  g: graphique  •  t: tableau  •  j/k: défiler  •  q: quitter"
+		helpText = "◀ ▶/tab: tabs  •  g: graph  •  t: table  •  j/k: scroll  •  q: quit"
 	}
 	if d.tab == 7 {
 		online := 0
@@ -1325,8 +1320,8 @@ func (d Dashboard) viewStatus(w int) string {
 				online++
 			}
 		}
-		left = statusStyle.Render(fmt.Sprintf("Mois: %s:%d  •  Peers: %d/%d", d.myIP, d.port, online, len(d.peerStatuses)))
-		helpText = "a: ajouter  •  f: fetch  •  j/k: défiler  •  q: quitter"
+		left = statusStyle.Render(fmt.Sprintf("Host: %s:%d  •  Peers: %d/%d", d.myIP, d.port, online, len(d.peerStatuses)))
+		helpText = "a: add  •  f: fetch  •  j/k: scroll  •  q: quit"
 	}
 	right := helpStyle.Render(helpText)
 	gap := w - lipgloss.Width(left) - lipgloss.Width(right)
@@ -1340,45 +1335,45 @@ func (d Dashboard) viewStatus(w int) string {
 
 func (d *Dashboard) handleSortKey(key string) {
 	switch d.tab {
-	case 1: // Sessions: p=projet, m=msgs, t=tools, o=tokens, d=durée
+	case 1: // Sessions: p=project, m=msgs, t=tools, o=tokens, d=duration
 		if col, ok := map[string]string{
-			"p": "projet", "m": "msgs", "t": "tools", "o": "tokens", "d": "duree",
+			"p": "project", "m": "msgs", "t": "tools", "o": "tokens", "d": "duration",
 		}[key]; ok {
 			d.toggleSort(&d.sortSessions, col)
 		}
-	case 2: // Tools: o=outil, a=appels, %=pct
+	case 2: // Tools: t=tool, c=calls, %=pct
 		if col, ok := map[string]string{
-			"o": "outil", "a": "appels", "%": "pct",
+			"t": "tool", "c": "calls", "%": "pct",
 		}[key]; ok {
 			d.toggleSort(&d.sortTools, col)
 		}
-	case 3: // Projects: p=projet, s=sessions, m=messages, t=tokens, c=coût
+	case 3: // Projects: p=project, s=sessions, m=messages, t=tokens, c=cost
 		if col, ok := map[string]string{
-			"p": "projet", "s": "sessions", "m": "messages", "t": "tokens", "c": "cout",
+			"p": "project", "s": "sessions", "m": "messages", "t": "tokens", "c": "cost",
 		}[key]; ok {
 			d.toggleSort(&d.sortProjects, col)
 		}
-	case 6: // Modèles: m=model, s=source, g=msgs, i=input, o=output, h=cache, c=coût
+	case 6: // Models: m=model, s=source, g=msgs, i=input, o=output, h=cache, c=cost
 		if col, ok := map[string]string{
-			"m": "model", "s": "source", "g": "msgs", "i": "input", "o": "output", "h": "cache", "c": "cout",
+			"m": "model", "s": "source", "g": "msgs", "i": "input", "o": "output", "h": "cache", "c": "cost",
 		}[key]; ok {
 			d.toggleSort(&d.sortModels, col)
 		}
-	case 4: // Coûts: g=graph, t=table + sort d=date, s=sessions, m=messages, i=input, o=output, c=coût
+	case 4: // Costs: g=graph, t=table + sort d=date, s=sessions, m=messages, i=input, o=output, c=cost
 		if key == "g" {
 			d.costView = "g"
 		} else if key == "t" {
 			d.costView = "t"
 		} else if col, ok := map[string]string{
-			"d": "date", "s": "sessions", "m": "messages", "i": "input", "o": "output", "c": "cout",
+			"d": "date", "s": "sessions", "m": "messages", "i": "input", "o": "output", "c": "cost",
 		}[key]; ok {
 			d.toggleSort(&d.sortCosts, col)
 		}
-	case 7: // Réseau: a=ajouter, f=fetch
+	case 7: // Network: a=add, f=fetch
 		if key == "a" {
 			d.inputMode = true
 			d.inputBuffer = ""
-			d.inputPrompt = "Adresse IP:port"
+			d.inputPrompt = "IP:port address"
 		} else if key == "f" {
 			d.fetchPeers()
 		}
@@ -1491,6 +1486,9 @@ func pct(part, total int) float64 {
 }
 
 func fmtNum(n int) string {
+	if n >= 1_000_000_000 {
+		return fmt.Sprintf("%.1fB", float64(n)/1_000_000_000)
+	}
 	if n >= 1_000_000 {
 		return fmt.Sprintf("%.1fM", float64(n)/1_000_000)
 	}
