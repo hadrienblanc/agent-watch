@@ -329,21 +329,19 @@ func (d Dashboard) viewOverview(w int) string {
 	}
 	sort.Slice(srcs, func(i, j int) bool { return srcs[i].sessions > srcs[j].sessions })
 
-	const (
-		colSrc  = 12
-		colSess = 10
-		colMsgs = 10
-		colCost = 10
-	)
+	colSrc := 9
+	colSess := 7
+	colMsgs := 7
+	colCost := 8
 	var srcTableRows []string
 	srcHeader := fmt.Sprintf("  %-*s %*s %*s %*s",
 		colSrc, "Source",
-		colSess, "Sessions",
-		colMsgs, "Messages",
+		colSess, "Sess.",
+		colMsgs, "Msgs",
 		colCost, "Coût",
 	)
 	srcTableRows = append(srcTableRows, tableHeaderStyle.Render(srcHeader))
-	srcTableRows = append(srcTableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colCost+8)))
+	srcTableRows = append(srcTableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colCost+6)))
 	for _, se := range srcs {
 		pct := pct(se.sessions, s.TotalSessions)
 		bar := d.miniBar(pct, 15)
@@ -371,13 +369,12 @@ func (d Dashboard) viewOverview(w int) string {
 func (d Dashboard) viewSessions(w int) string {
 	s := d.stats
 
-	const (
-		colProjet  = 28
-		colMsgs    = 8
-		colTools   = 8
-		colTokens  = 10
-		colDuree   = 8
-	)
+	colMsgs := 7
+	colTools := 7
+	colTokens := 7
+	colDuree := 7
+	fixedCols := colMsgs + colTools + colTokens + colDuree + 10
+	colProjet := max(16, w-fixedCols-4)
 
 	// Tri
 	sessions := make([]data.Session, len(s.Sessions))
@@ -492,11 +489,9 @@ func (d Dashboard) viewTools(w int) string {
 		return !less
 	})
 
-	const (
-		colTool = 20
-		colCall = 8
-		colPct  = 8
-	)
+	colTool := 16
+	colCall := 7
+	colPct := 7
 
 	var rows []string
 
@@ -542,14 +537,13 @@ func (d Dashboard) viewTools(w int) string {
 func (d Dashboard) viewProjects(w int) string {
 	s := d.stats
 
-	const (
-		colName     = 30
-		colSessions = 10
-		colMessages = 10
-		colTokens   = 10
-		colCost     = 10
-		tableMin    = colName + colSessions + colMessages + colTokens + colCost + 14
-	)
+	colSessions := 7
+	colMessages := 7
+	colTokens := 7
+	colCost := 8
+	fixedCols := colSessions + colMessages + colTokens + colCost + 10
+	colName := max(16, w-fixedCols-4)
+	tableMin := colName + fixedCols
 
 	// Tri
 	projects := make([]data.ProjectSummary, len(s.Projects))
@@ -809,15 +803,13 @@ func (d Dashboard) viewCostGraph(w int, days []data.DayCost) string {
 }
 
 func (d Dashboard) viewCostTable(w int, days []data.DayCost) string {
-	const (
-		colDate     = 12
-		colSessions = 10
-		colMessages = 10
-		colInput    = 10
-		colOutput   = 10
-		colCache    = 10
-		colCost     = 10
-	)
+	colDate := 12
+	colSessions := 7
+	colMessages := 7
+	colInput := 7
+	colOutput := 7
+	colCache := 7
+	colCost := 8
 
 	// Tri
 	sorted := make([]data.DayCost, len(days))
@@ -944,27 +936,25 @@ func (d Dashboard) viewSources(w int) string {
 	}
 	sort.Slice(srcs, func(i, j int) bool { return srcs[i].cost > srcs[j].cost })
 
-	const (
-		colSrc   = 12
-		colSess  = 10
-		colMsgs  = 10
-		colIn    = 10
-		colOut   = 10
-		colCache = 10
-		colCost  = 10
-	)
+	colSrc := 9
+	colSess := 7
+	colMsgs := 7
+	colIn := 7
+	colOut := 7
+	colCache := 7
+	colCost := 8
 	var tableRows []string
 	header := fmt.Sprintf("  %-*s %*s %*s %*s %*s %*s %*s",
 		colSrc, "Source",
-		colSess, "Sessions",
-		colMsgs, "Messages",
+		colSess, "Sess.",
+		colMsgs, "Msgs",
 		colIn, "Input",
 		colOut, "Output",
 		colCache, "Cache",
 		colCost, "Coût",
 	)
 	tableRows = append(tableRows, tableHeaderStyle.Render(header))
-	tableRows = append(tableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colIn+colOut+colCache+colCost+14)))
+	tableRows = append(tableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colIn+colOut+colCache+colCost+12)))
 
 	for _, sd := range srcs {
 		pct := pct(int(sd.cost*100), int(s.TotalCost*100))
@@ -1071,9 +1061,6 @@ func (d Dashboard) viewModels(w int) string {
 	colSource := 9
 	fixedCols := colSource + colMsgs + colIn + colOut + colCache + colCost + 14 // padding + margins
 	colModel := max(16, w-fixedCols-4)
-	if colModel > 28 {
-		colModel = 28
-	}
 
 	var rows []string
 
