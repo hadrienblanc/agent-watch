@@ -124,7 +124,7 @@ func parseGeminiSession(path, project string) (*Session, error) {
 
 	s := &Session{
 		ID:        gs.SessionID,
-		Source:    "gemini",
+		Source:    SourceGemini,
 		Slug:      filepath.Base(path),
 		Project:   project,
 		StartTime: startTime,

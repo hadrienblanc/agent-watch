@@ -77,10 +77,18 @@ type DayTokens struct {
 	Cost     float64
 }
 
+// Sources disponibles.
+const (
+	SourceClaude   = "claude"
+	SourceOpenCode = "opencode"
+	SourceCodex    = "codex"
+	SourceGemini   = "gemini"
+)
+
 // Session résume une conversation.
 type Session struct {
 	ID        string
-	Source    string // "claude", "opencode", "codex", "gemini"
+	Source    string
 	Slug      string
 	Project   string
 	StartTime time.Time
@@ -239,6 +247,34 @@ func claudeDir() string {
 	return filepath.Join(home, ".claude")
 }
 
+// aggregateSession agrège les métriques d'une session dans les stats globales.
+func aggregateSession(stats *Stats, s *Session) {
+	stats.TotalInputTokens += s.InputTokens
+	stats.TotalOutputTokens += s.OutputTokens
+	stats.TotalCacheRead += s.CacheReadTokens
+	stats.TotalMessages += s.UserMessages + s.AssistantMessages
+	stats.TotalToolErrors += s.ToolErrors
+
+	for tool, count := range s.ToolUses {
+		stats.ToolUsage[tool] += count
+		stats.TotalToolUses += count
+	}
+	for model, count := range s.Models {
+		stats.Models[model] += count
+	}
+}
+
+// aggregateProject agrège les métriques d'une session dans un résumé projet.
+func aggregateProject(ps *ProjectSummary, s *Session) {
+	ps.Sessions++
+	ps.Messages += s.UserMessages + s.AssistantMessages
+	ps.Tokens += s.InputTokens + s.OutputTokens
+	ps.InputTokens += s.InputTokens
+	ps.OutputTokens += s.OutputTokens
+	ps.CacheRead += s.CacheReadTokens
+	ps.Cost += s.Cost
+}
+
 // LoadStats charge et agrège toutes les conversations.
 func LoadStats() (*Stats, error) {
 	projectsDir := filepath.Join(claudeDir(), "projects")
@@ -267,35 +303,14 @@ func LoadStats() (*Stats, error) {
 		projSummary := ProjectSummary{
 			Name:     projectName,
 			Path:     projectPath,
-			Sessions: len(sessions),
 		}
 
 		for i := range sessions {
 			sessions[i].Project = projectName
-			sessions[i].Source = "claude"
+			sessions[i].Source = SourceClaude
 			s := &sessions[i]
-
-			stats.TotalInputTokens += s.InputTokens
-			stats.TotalOutputTokens += s.OutputTokens
-			stats.TotalCacheRead += s.CacheReadTokens
-			stats.TotalMessages += s.UserMessages + s.AssistantMessages
-			stats.TotalToolErrors += s.ToolErrors
-
-			for tool, count := range s.ToolUses {
-				stats.ToolUsage[tool] += count
-				stats.TotalToolUses += count
-			}
-
-			for model, count := range s.Models {
-				stats.Models[model] += count
-			}
-
-			projSummary.Messages += s.UserMessages + s.AssistantMessages
-			projSummary.Tokens += s.InputTokens + s.OutputTokens
-			projSummary.InputTokens += s.InputTokens
-			projSummary.OutputTokens += s.OutputTokens
-			projSummary.CacheRead += s.CacheReadTokens
-			projSummary.Cost += s.Cost
+			aggregateSession(stats, s)
+			aggregateProject(&projSummary, s)
 		}
 
 		stats.Sessions = append(stats.Sessions, sessions...)
@@ -320,19 +335,7 @@ func LoadStats() (*Stats, error) {
 		projMap := make(map[string]*ProjectSummary)
 		for i := range extraSessions {
 			s := &extraSessions[i]
-			stats.TotalInputTokens += s.InputTokens
-			stats.TotalOutputTokens += s.OutputTokens
-			stats.TotalCacheRead += s.CacheReadTokens
-			stats.TotalMessages += s.UserMessages + s.AssistantMessages
-			stats.TotalToolErrors += s.ToolErrors
-
-			for tool, count := range s.ToolUses {
-				stats.ToolUsage[tool] += count
-				stats.TotalToolUses += count
-			}
-			for model, count := range s.Models {
-				stats.Models[model] += count
-			}
+			aggregateSession(stats, s)
 
 			key := loader.name + "/" + s.Project
 			ps := projMap[key]
@@ -340,13 +343,7 @@ func LoadStats() (*Stats, error) {
 				ps = &ProjectSummary{Name: s.Project + " (" + loader.name + ")"}
 				projMap[key] = ps
 			}
-			ps.Sessions++
-			ps.Messages += s.UserMessages + s.AssistantMessages
-			ps.Tokens += s.InputTokens + s.OutputTokens
-			ps.InputTokens += s.InputTokens
-			ps.OutputTokens += s.OutputTokens
-			ps.CacheRead += s.CacheReadTokens
-			ps.Cost += s.Cost
+			aggregateProject(ps, s)
 		}
 
 		stats.Sessions = append(stats.Sessions, extraSessions...)

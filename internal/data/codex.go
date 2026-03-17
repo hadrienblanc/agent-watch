@@ -90,7 +90,7 @@ func LoadCodexSessions() ([]Session, error) {
 
 		s := Session{
 			ID:        id,
-			Source:    "codex",
+			Source:    SourceCodex,
 			Slug:      truncateTitle(title, 40),
 			Project:   projectFromDir(cwd),
 			StartTime: time.Unix(created, 0),

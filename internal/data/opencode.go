@@ -75,7 +75,7 @@ func LoadOpenCodeSessions() ([]Session, error) {
 	for _, sr := range sessionRows {
 		s := Session{
 			ID:        sr.id,
-			Source:    "opencode",
+			Source:    SourceOpenCode,
 			Slug:      sr.slug,
 			Project:   projectFromDir(sr.dir),
 			StartTime: time.UnixMilli(sr.created),
