@@ -124,6 +124,79 @@ func TestParseSession(t *testing.T) {
 	}
 }
 
+func TestComputeCost(t *testing.T) {
+	tests := []struct {
+		name   string
+		model  string
+		input  int
+		output int
+		cacheR int
+		cacheW int
+		want   float64
+	}{
+		{
+			name: "opus basic",
+			model: "claude-opus-4-6", input: 1000, output: 500,
+			want: 1000*15.0/1_000_000 + 500*75.0/1_000_000,
+		},
+		{
+			name: "opus with cache",
+			model: "claude-opus-4-6", input: 100, output: 500, cacheR: 10000, cacheW: 5000,
+			want: 100*15.0/1_000_000 + 500*75.0/1_000_000 + 10000*1.50/1_000_000 + 5000*18.75/1_000_000,
+		},
+		{
+			name: "zero tokens",
+			model: "claude-opus-4-6",
+			want: 0,
+		},
+		{
+			name: "unknown model falls back to opus pricing",
+			model: "unknown-model-xyz", input: 1000, output: 500,
+			want: 1000*15.0/1_000_000 + 500*75.0/1_000_000,
+		},
+		{
+			name: "synthetic model costs nothing",
+			model: "<synthetic>", input: 10000, output: 5000, cacheR: 3000,
+			want: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ComputeCost(tt.model, tt.input, tt.output, tt.cacheR, tt.cacheW)
+			if diff := got - tt.want; diff > 0.000001 || diff < -0.000001 {
+				t.Errorf("ComputeCost(%s, %d, %d, %d, %d) = %f, want %f",
+					tt.model, tt.input, tt.output, tt.cacheR, tt.cacheW, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPricingFor(t *testing.T) {
+	// Exact match
+	p := pricingFor("claude-opus-4-6")
+	if p.InputPerM != 15.0 {
+		t.Errorf("opus input pricing = %f, want 15.0", p.InputPerM)
+	}
+
+	// Prefix match
+	p = pricingFor("claude-opus-4-6-20260301")
+	if p.InputPerM != 15.0 {
+		t.Errorf("opus prefix match input = %f, want 15.0", p.InputPerM)
+	}
+
+	// Unknown model -> default (opus)
+	p = pricingFor("totally-unknown")
+	if p.InputPerM != 15.0 {
+		t.Errorf("unknown model should default to opus, got input = %f", p.InputPerM)
+	}
+
+	// Synthetic
+	p = pricingFor("<synthetic>")
+	if p.InputPerM != 0 {
+		t.Errorf("synthetic input = %f, want 0", p.InputPerM)
+	}
+}
+
 func TestParseGeminiSession(t *testing.T) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "session-2026-03-17T15-49-test.json")
