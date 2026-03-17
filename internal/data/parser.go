@@ -112,8 +112,8 @@ type Session struct {
 
 	Cost float64
 
-	// Tokens per day (for daily cost calculation)
-	PerDay map[dayKey]*DayTokens
+	// Tokens per day (for daily cost calculation, internal only)
+	PerDay map[dayKey]*DayTokens `json:"-"`
 }
 
 // ProjectSummary summarizes a project.

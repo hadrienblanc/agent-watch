@@ -890,3 +890,49 @@ func TestLoadStatsFromReal(t *testing.T) {
 		t.Error("expected gemini sessions in stats")
 	}
 }
+
+func TestStatsJSONSerializable(t *testing.T) {
+	stats := &Stats{
+		Sessions: []Session{
+			{
+				ID: "s1", Source: "claude", Project: "proj",
+				UserMessages: 5, AssistantMessages: 3,
+				InputTokens: 1000, OutputTokens: 500,
+				ToolUses: map[string]int{"Read": 2},
+				Models:   map[string]int{"opus": 3},
+				PerDay: map[dayKey]*DayTokens{
+					dayKeyFrom(time.Now()): {Input: 1000, Output: 500},
+				},
+			},
+		},
+		ToolUsage:    map[string]int{"Read": 2},
+		Models:       map[string]int{"opus": 3},
+		TotalCost:    1.50,
+		LastUpdated:  time.Now(),
+		DailyCosts:   []DayCost{{Date: time.Now(), Cost: 1.50}},
+	}
+
+	// PerDay has map[dayKey] which is not JSON-serializable.
+	// json:"-" tag must exclude it so encoding succeeds.
+	data, err := json.Marshal(stats)
+	if err != nil {
+		t.Fatalf("json.Marshal(Stats) failed: %v", err)
+	}
+
+	// Roundtrip: unmarshal into a new Stats
+	var decoded Stats
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal(Stats) failed: %v", err)
+	}
+
+	if decoded.TotalCost != 1.50 {
+		t.Errorf("TotalCost = %.2f, want 1.50", decoded.TotalCost)
+	}
+	if len(decoded.Sessions) != 1 {
+		t.Errorf("Sessions count = %d, want 1", len(decoded.Sessions))
+	}
+	// PerDay should be nil after roundtrip (excluded from JSON)
+	if decoded.Sessions[0].PerDay != nil {
+		t.Error("PerDay should be nil after JSON roundtrip (json:\"-\")")
+	}
+}
