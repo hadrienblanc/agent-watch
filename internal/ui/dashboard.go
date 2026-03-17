@@ -1063,15 +1063,17 @@ func (d Dashboard) viewModels(w int) string {
 		return !less
 	})
 
-	const (
-		colModel  = 24
-		colSource = 12
-		colMsgs   = 10
-		colIn     = 10
-		colOut    = 10
-		colCache  = 10
-		colCost   = 10
-	)
+	colMsgs := 7
+	colIn := 7
+	colOut := 7
+	colCache := 7
+	colCost := 8
+	colSource := 9
+	fixedCols := colSource + colMsgs + colIn + colOut + colCache + colCost + 14 // padding + margins
+	colModel := max(16, w-fixedCols-4)
+	if colModel > 28 {
+		colModel = 28
+	}
 
 	var rows []string
 
@@ -1086,7 +1088,7 @@ func (d Dashboard) viewModels(w int) string {
 		colCost, "(c)oût"+si(so, "cout"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
-	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colModel+colSource+colMsgs+colIn+colOut+colCache+colCost+14)))
+	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colModel+colSource+colMsgs+colIn+colOut+colCache+colCost+12)))
 
 	totalMsgs := 0
 	for _, md := range models {
