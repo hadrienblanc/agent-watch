@@ -108,8 +108,8 @@ func TestDashboardTabNavigation(t *testing.T) {
 	d.tab = 0
 	model, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	d = model.(Dashboard)
-	if d.tab != 5 {
-		t.Errorf("expected tab 5 (wrap left), got %d", d.tab)
+	if d.tab != 6 {
+		t.Errorf("expected tab 6 (wrap left), got %d", d.tab)
 	}
 }
 
@@ -181,14 +181,24 @@ func TestDashboardViewTabs(t *testing.T) {
 	// Sources
 	d.tab = 5
 	view = d.View()
-	if !strings.Contains(view.Content, "Claude") {
-		t.Error("sources tab should contain 'Claude'")
+	if !strings.Contains(view.Content, "claude") {
+		t.Error("sources tab should contain 'claude'")
 	}
-	if !strings.Contains(view.Content, "Opencode") {
-		t.Error("sources tab should contain 'Opencode'")
+	if !strings.Contains(view.Content, "opencode") {
+		t.Error("sources tab should contain 'opencode'")
 	}
 	if !strings.Contains(view.Content, "Comparatif") {
 		t.Error("sources tab should contain 'Comparatif'")
+	}
+
+	// Modèles
+	d.tab = 6
+	view = d.View()
+	if !strings.Contains(view.Content, "claude-opus") {
+		t.Error("models tab should contain 'claude-opus'")
+	}
+	if !strings.Contains(view.Content, "glm-5") {
+		t.Error("models tab should contain 'glm-5'")
 	}
 }
 

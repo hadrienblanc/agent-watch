@@ -15,7 +15,7 @@ import (
 type statsMsg *data.Stats
 type refreshMsg struct{}
 
-const totalTabs = 6
+const totalTabs = 7
 
 type sortOrder struct {
 	col string
@@ -33,6 +33,7 @@ type Dashboard struct {
 	sortTools    sortOrder
 	sortProjects sortOrder
 	sortCosts    sortOrder
+	sortModels   sortOrder
 	costView     string // "g" = graph, "t" = table
 }
 
@@ -43,6 +44,7 @@ func NewDashboard() Dashboard {
 		sortTools:    sortOrder{col: "a", asc: false},
 		sortProjects: sortOrder{col: "m", asc: false},
 		sortCosts:    sortOrder{col: "date", asc: false},
+		sortModels:   sortOrder{col: "msgs", asc: false},
 		costView:     "g",
 	}
 }
@@ -100,6 +102,9 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			d.scroll = 0
 		case "6":
 			d.tab = 5
+			d.scroll = 0
+		case "7":
+			d.tab = 6
 			d.scroll = 0
 		case "tab", "right":
 			d.tab = (d.tab + 1) % totalTabs
@@ -172,6 +177,8 @@ func (d Dashboard) View() tea.View {
 		content = d.viewCosts(w)
 	case 5:
 		content = d.viewSources(w)
+	case 6:
+		content = d.viewModels(w)
 	}
 
 	status := d.viewStatus(w)
@@ -192,7 +199,7 @@ func (d Dashboard) View() tea.View {
 }
 
 func (d Dashboard) viewTabs() string {
-	tabs := []string{"1:Overview", "2:Sessions", "3:Outils", "4:Projets", "5:Coûts", "6:Sources"}
+	tabs := []string{"1:Overview", "2:Sessions", "3:Outils", "4:Projets", "5:Coûts", "6:Sources", "7:Modèles"}
 	var parts []string
 	for i, t := range tabs {
 		if i == d.tab {
@@ -912,7 +919,6 @@ func (d Dashboard) viewSources(w int) string {
 		output   int
 		cache    int
 		cost     float64
-		models   map[string]int
 	}
 
 	srcMap := make(map[string]*sourceData)
@@ -923,7 +929,7 @@ func (d Dashboard) viewSources(w int) string {
 		}
 		sd := srcMap[src]
 		if sd == nil {
-			sd = &sourceData{name: src, models: make(map[string]int)}
+			sd = &sourceData{name: src}
 			srcMap[src] = sd
 		}
 		sd.sessions++
@@ -932,9 +938,6 @@ func (d Dashboard) viewSources(w int) string {
 		sd.output += sess.OutputTokens
 		sd.cache += sess.CacheReadTokens
 		sd.cost += sess.Cost
-		for m, c := range sess.Models {
-			sd.models[m] += c
-		}
 	}
 
 	var srcs []*sourceData
@@ -943,114 +946,167 @@ func (d Dashboard) viewSources(w int) string {
 	}
 	sort.Slice(srcs, func(i, j int) bool { return srcs[i].cost > srcs[j].cost })
 
-	halfW := (w - 3) / 2
-	if halfW < 35 {
-		halfW = 35
-	}
-
-	var panels []string
-	for _, sd := range srcs {
-		// Panel résumé
-		pct := float64(sd.sessions) / float64(max(s.TotalSessions, 1)) * 100
-
-		var modelRows []kv
-		type me struct {
-			name  string
-			count int
-		}
-		var models []me
-		for m, c := range sd.models {
-			models = append(models, me{m, c})
-		}
-		sort.Slice(models, func(i, j int) bool { return models[i].count > models[j].count })
-
-		totalModelMsgs := 0
-		for _, m := range models {
-			totalModelMsgs += m.count
-		}
-
-		modelRows = append(modelRows,
-			kv{"Sessions", bigNumStyle.Render(fmt.Sprintf("%d", sd.sessions)) + labelStyle.Render(fmt.Sprintf("  (%.0f%%)", pct))},
-			kv{"Messages", valueStyle.Render(fmtNum(sd.messages))},
-			kv{"Input", valueStyle.Render(fmtNum(sd.input))},
-			kv{"Output", valueStyle.Render(fmtNum(sd.output))},
-			kv{"Cache lu", cyanStyle.Render(fmtNum(sd.cache))},
-			kv{"Coût", orangeStyle.Render(fmt.Sprintf("$%.2f", sd.cost))},
-			kv{"", ""},
-			kv{"Modèles", ""},
-		)
-
-		for _, m := range models {
-			mPct := float64(m.count) / float64(max(totalModelMsgs, 1)) * 100
-			bar := d.miniBar(mPct, 15)
-			modelRows = append(modelRows, kv{"  " + m.name, fmt.Sprintf("%s %s %s",
-				valueStyle.Render(fmtNum(m.count)),
-				labelStyle.Render(fmt.Sprintf("(%.0f%%)", mPct)),
-				bar,
-			)})
-		}
-
-		panel := d.panel(strings.ToUpper(sd.name[:1])+sd.name[1:], halfW, modelRows...)
-		panels = append(panels, panel)
-	}
-
-	// Disposer les panels: 2 par ligne
-	var rows []string
-	for i := 0; i < len(panels); i += 2 {
-		if i+1 < len(panels) {
-			rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Top, panels[i], " ", panels[i+1]))
-		} else {
-			rows = append(rows, panels[i])
-		}
-	}
-
-	// Tableau comparatif en bas
 	const (
-		colSrc  = 12
-		colSess = 10
-		colMsgs = 10
-		colIn   = 10
-		colOut  = 10
-		colCost = 10
+		colSrc   = 12
+		colSess  = 10
+		colMsgs  = 10
+		colIn    = 10
+		colOut   = 10
+		colCache = 10
+		colCost  = 10
 	)
 	var tableRows []string
-	header := fmt.Sprintf("  %-*s %*s %*s %*s %*s %*s",
+	header := fmt.Sprintf("  %-*s %*s %*s %*s %*s %*s %*s",
 		colSrc, "Source",
 		colSess, "Sessions",
 		colMsgs, "Messages",
 		colIn, "Input",
 		colOut, "Output",
+		colCache, "Cache",
 		colCost, "Coût",
 	)
 	tableRows = append(tableRows, tableHeaderStyle.Render(header))
-	tableRows = append(tableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colIn+colOut+colCost+12)))
+	tableRows = append(tableRows, labelStyle.Render("  "+strings.Repeat("─", colSrc+colSess+colMsgs+colIn+colOut+colCache+colCost+14)))
 
 	for _, sd := range srcs {
 		pct := float64(sd.cost) / float64(max(1, int(s.TotalCost))) * 100
 		bar := d.miniBar(pct, 15)
-		row := fmt.Sprintf("  %-*s %*d %*s %*s %*s %*s  %s",
+		row := fmt.Sprintf("  %-*s %*d %*s %*s %*s %*s %*s  %s",
 			colSrc, sd.name,
 			colSess, sd.sessions,
 			colMsgs, fmtNum(sd.messages),
 			colIn, fmtNum(sd.input),
 			colOut, fmtNum(sd.output),
+			colCache, fmtNum(sd.cache),
 			colCost, fmt.Sprintf("$%.2f", sd.cost),
 			bar,
 		)
 		tableRows = append(tableRows, row)
 	}
 
-	tablePanel := panelStyle.Width(w).Render(
+	content := strings.Join(tableRows, "\n")
+	return panelStyle.Width(w).Render(
 		lipgloss.JoinVertical(lipgloss.Left,
-			panelTitleStyle.Render("Comparatif"),
-			strings.Join(tableRows, "\n"),
+			panelTitleStyle.Render("Comparatif par source"),
+			content,
 		),
 	)
+}
 
-	rows = append(rows, "")
-	rows = append(rows, tablePanel)
+// --- Tab 6: Modèles ---
 
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
+func (d Dashboard) viewModels(w int) string {
+	s := d.stats
+
+	type modelData struct {
+		name    string
+		source  string
+		count   int
+		cost    float64
+		input   int
+		output  int
+	}
+
+	mdMap := make(map[string]*modelData)
+	for _, sess := range s.Sessions {
+		src := sess.Source
+		if src == "" {
+			src = "claude"
+		}
+		for m, c := range sess.Models {
+			key := m + "|" + src
+			md := mdMap[key]
+			if md == nil {
+				md = &modelData{name: m, source: src}
+				mdMap[key] = md
+			}
+			md.count += c
+			md.cost += sess.Cost / float64(max(1, len(sess.Models)))
+			md.input += sess.InputTokens / max(1, len(sess.Models))
+			md.output += sess.OutputTokens / max(1, len(sess.Models))
+		}
+	}
+
+	var models []modelData
+	for _, md := range mdMap {
+		models = append(models, *md)
+	}
+
+	so := d.sortModels
+	sort.Slice(models, func(i, j int) bool {
+		a, b := models[i], models[j]
+		less := false
+		switch so.col {
+		case "model":
+			less = a.name < b.name
+		case "source":
+			less = a.source < b.source
+		case "msgs":
+			less = a.count < b.count
+		case "cout":
+			less = a.cost < b.cost
+		}
+		if so.asc {
+			return less
+		}
+		return !less
+	})
+
+	const (
+		colModel  = 24
+		colSource = 12
+		colMsgs   = 10
+		colIn     = 10
+		colOut    = 10
+		colCost   = 10
+	)
+
+	var rows []string
+
+	si := sortIndicator
+	header := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s",
+		colModel, "(m)odèle"+si(so, "model"),
+		colSource, "(s)ource"+si(so, "source"),
+		colMsgs, "ms(g)s"+si(so, "msgs"),
+		colIn, "Input",
+		colOut, "Output",
+		colCost, "(c)oût"+si(so, "cout"),
+	)
+	rows = append(rows, tableHeaderStyle.Render(header))
+	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colModel+colSource+colMsgs+colIn+colOut+colCost+12)))
+
+	totalMsgs := 0
+	for _, md := range models {
+		totalMsgs += md.count
+	}
+
+	for _, md := range models {
+		name := md.name
+		if len(name) > colModel-2 {
+			name = name[:colModel-2]
+		}
+		pct := float64(md.count) / float64(max(totalMsgs, 1)) * 100
+		bar := d.miniBar(pct, 15)
+
+		row := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s  %s",
+			colModel, name,
+			colSource, md.source,
+			colMsgs, fmtNum(md.count),
+			colIn, fmtNum(md.input),
+			colOut, fmtNum(md.output),
+			colCost, fmt.Sprintf("$%.2f", md.cost),
+			bar,
+		)
+		rows = append(rows, row)
+	}
+
+	content := strings.Join(rows, "\n")
+	return panelStyle.Width(w).Render(
+		lipgloss.JoinVertical(lipgloss.Left,
+			panelTitleStyle.Render("Modèles par source"),
+			content,
+		),
+	)
 }
 
 // --- Status ---
@@ -1090,6 +1146,12 @@ func (d *Dashboard) handleSortKey(key string) {
 			"p": "projet", "s": "sessions", "m": "messages", "t": "tokens", "c": "cout",
 		}[key]; ok {
 			d.toggleSort(&d.sortProjects, col)
+		}
+	case 6: // Modèles: m=model, s=source, g=msgs, c=coût
+		if col, ok := map[string]string{
+			"m": "model", "s": "source", "g": "msgs", "c": "cout",
+		}[key]; ok {
+			d.toggleSort(&d.sortModels, col)
 		}
 	case 4: // Coûts: g=graph, t=table + sort d=date, s=sessions, m=messages, i=input, o=output, c=coût
 		if key == "g" {
