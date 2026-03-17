@@ -1,4 +1,4 @@
-module claude_monitor
+module github.com/hadrienblanc/agent-watch
 
 go 1.26.1
 

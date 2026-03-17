@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"claude_monitor/internal/data"
-	"claude_monitor/internal/peer"
+	"github.com/hadrienblanc/agent-watch/internal/data"
+	"github.com/hadrienblanc/agent-watch/internal/peer"
 )
 
 // RenderScreenshot returns the ANSI content for a given tab with the provided stats.

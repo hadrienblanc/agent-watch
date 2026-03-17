@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"claude_monitor/internal/data"
-	"claude_monitor/internal/peer"
+	"github.com/hadrienblanc/agent-watch/internal/data"
+	"github.com/hadrienblanc/agent-watch/internal/peer"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -243,7 +243,7 @@ func (d Dashboard) View() tea.View {
 		}
 		s := lipgloss.NewStyle().Padding(2, 4).Render(
 			lipgloss.JoinVertical(lipgloss.Left,
-				headerStyle.Render(" Claude Monitor "),
+				headerStyle.Render(" Agent Watch "),
 				"",
 				labelStyle.Render(loadMsg),
 			),
@@ -255,7 +255,7 @@ func (d Dashboard) View() tea.View {
 
 	if d.stats == nil {
 		s := lipgloss.NewStyle().Padding(2, 4).Render(
-			errValStyle.Render("Failed to load Claude data"),
+			errValStyle.Render("Failed to load data"),
 		)
 		v := tea.NewView(s)
 		v.AltScreen = true
@@ -264,7 +264,7 @@ func (d Dashboard) View() tea.View {
 
 	w := d.width - 4
 
-	header := lipgloss.PlaceHorizontal(w, lipgloss.Center, headerStyle.Render(" Claude Monitor "))
+	header := lipgloss.PlaceHorizontal(w, lipgloss.Center, headerStyle.Render(" Agent Watch "))
 	tabs := d.viewTabs()
 
 	var content string
@@ -1319,7 +1319,8 @@ func (d *Dashboard) handleInput(key string) (tea.Model, tea.Cmd) {
 	switch key {
 	case "enter":
 		if d.inputBuffer != "" && d.peerStorage != nil {
-			d.peerStorage.Add(d.inputBuffer)
+			addr := normalizePeerAddr(d.inputBuffer)
+			d.peerStorage.Add(addr)
 		}
 		d.inputMode = false
 		d.inputBuffer = ""
@@ -1597,6 +1598,15 @@ func truncate(s string, maxLen int) string {
 		return ""
 	}
 	return string(runes[:maxLen])
+}
+
+// normalizePeerAddr strips protocol prefix and trailing slashes from a peer address.
+func normalizePeerAddr(addr string) string {
+	addr = strings.TrimSpace(addr)
+	addr = strings.TrimPrefix(addr, "http://")
+	addr = strings.TrimPrefix(addr, "https://")
+	addr = strings.TrimRight(addr, "/")
+	return addr
 }
 
 // formatCost formats a cost as a dollar string.

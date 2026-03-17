@@ -1,2 +1,2 @@
 #!/bin/bash
-go build -o claude_monitor . && ./claude_monitor
+go build -o agent-watch . && ./agent-watch

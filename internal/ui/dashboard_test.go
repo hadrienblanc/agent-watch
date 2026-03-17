@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"claude_monitor/internal/data"
-	"claude_monitor/internal/peer"
+	"github.com/hadrienblanc/agent-watch/internal/data"
+	"github.com/hadrienblanc/agent-watch/internal/peer"
 
 	tea "charm.land/bubbletea/v2"
 )

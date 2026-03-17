@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"claude_monitor/internal/data"
+	"github.com/hadrienblanc/agent-watch/internal/data"
 )
 
 func TestFetchPeer(t *testing.T) {

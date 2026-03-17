@@ -16,9 +16,9 @@ import (
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 
-	"claude_monitor/internal/data"
-	"claude_monitor/internal/peer"
-	"claude_monitor/internal/ui"
+	"github.com/hadrienblanc/agent-watch/internal/data"
+	"github.com/hadrienblanc/agent-watch/internal/peer"
+	"github.com/hadrienblanc/agent-watch/internal/ui"
 )
 
 // ── Terminal cell ──
@@ -278,7 +278,7 @@ func renderPNG(grid [][]cell, maxWidth int, regFace, boldFace font.Face) *image.
 		Face: boldFace,
 		Dot:  fixed.P(imgW/2-55, dotCY+ascent/2),
 	}
-	titleDrawer.DrawString("Claude Monitor")
+	titleDrawer.DrawString("Agent Watch")
 
 	// Draw terminal content
 	offX := padX

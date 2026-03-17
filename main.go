@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"claude_monitor/internal/server"
-	"claude_monitor/internal/ui"
+	"github.com/hadrienblanc/agent-watch/internal/server"
+	"github.com/hadrienblanc/agent-watch/internal/ui"
 
 	tea "charm.land/bubbletea/v2"
 )

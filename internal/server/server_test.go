@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"claude_monitor/internal/data"
+	"github.com/hadrienblanc/agent-watch/internal/data"
 )
 
 func TestServerEndpoints(t *testing.T) {

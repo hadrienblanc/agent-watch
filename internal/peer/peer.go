@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"claude_monitor/internal/data"
+	"github.com/hadrienblanc/agent-watch/internal/data"
 )
 
 // PeerStatus represents the status of a peer machine.
