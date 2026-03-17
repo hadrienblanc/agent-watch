@@ -39,12 +39,21 @@ func fakeStats() *data.Stats {
 		},
 		Sessions: []data.Session{
 			{
-				ID: "s1", Slug: "test-session", Project: "test-proj",
+				ID: "s1", Source: "claude", Slug: "test-session", Project: "test-proj",
 				UserMessages: 10, AssistantMessages: 15,
 				InputTokens: 25000, OutputTokens: 15000,
 				ToolUses: map[string]int{"Read": 5},
 				Models:   map[string]int{"claude-opus-4-6": 15},
 				StartTime: time.Now().Add(-30 * time.Minute),
+				EndTime:   time.Now(),
+			},
+			{
+				ID: "s2", Source: "opencode", Slug: "oc-session", Project: "oc-proj",
+				UserMessages: 5, AssistantMessages: 8,
+				InputTokens: 8000, OutputTokens: 3000,
+				Models: map[string]int{"glm-5": 8},
+				ToolUses: map[string]int{},
+				StartTime: time.Now().Add(-1 * time.Hour),
 				EndTime:   time.Now(),
 			},
 		},
@@ -99,8 +108,8 @@ func TestDashboardTabNavigation(t *testing.T) {
 	d.tab = 0
 	model, _ = d.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	d = model.(Dashboard)
-	if d.tab != 4 {
-		t.Errorf("expected tab 4 (wrap left), got %d", d.tab)
+	if d.tab != 5 {
+		t.Errorf("expected tab 5 (wrap left), got %d", d.tab)
 	}
 }
 
@@ -167,6 +176,19 @@ func TestDashboardViewTabs(t *testing.T) {
 	}
 	if !strings.Contains(view.Content, "Mar") {
 		t.Error("costs tab table should contain date")
+	}
+
+	// Sources
+	d.tab = 5
+	view = d.View()
+	if !strings.Contains(view.Content, "Claude") {
+		t.Error("sources tab should contain 'Claude'")
+	}
+	if !strings.Contains(view.Content, "Opencode") {
+		t.Error("sources tab should contain 'Opencode'")
+	}
+	if !strings.Contains(view.Content, "Comparatif") {
+		t.Error("sources tab should contain 'Comparatif'")
 	}
 }
 
