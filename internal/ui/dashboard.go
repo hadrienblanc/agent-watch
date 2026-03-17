@@ -296,7 +296,8 @@ func (d Dashboard) viewOverview(w int) string {
 		kv{"Total", valueStyle.Render(fmt.Sprintf("%d modèles", len(models)))},
 		kv{"", ""},
 	}
-	for i, m := range models {
+	top := min(3, len(models))
+	for i, m := range models[:top] {
 		pct := float64(m.count) / float64(max(totalModelMsgs, 1)) * 100
 		label := fmt.Sprintf("#%d", i+1)
 		modelRows = append(modelRows, kv{label, fmt.Sprintf("%s  %s  %s",
