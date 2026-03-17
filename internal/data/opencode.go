@@ -13,12 +13,10 @@ import (
 
 // OpenCode message JSON data structure.
 type ocMessageData struct {
-	Role   string `json:"role"`
-	Model  struct {
-		ProviderID string `json:"providerID"`
-		ModelID    string `json:"modelID"`
-	} `json:"model"`
-	Tokens struct {
+	Role       string `json:"role"`
+	ModelID    string `json:"modelID"`
+	ProviderID string `json:"providerID"`
+	Tokens     struct {
 		Input  int `json:"input"`
 		Output int `json:"output"`
 		Total  int `json:"total"`
@@ -108,9 +106,9 @@ func LoadOpenCodeSessions() ([]Session, error) {
 				continue
 			}
 
-			model := md.Model.ModelID
+			model := md.ModelID
 			if model == "" {
-				model = md.Model.ProviderID
+				model = md.ProviderID
 			}
 
 			switch md.Role {

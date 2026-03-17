@@ -30,12 +30,12 @@ type codexSessionMeta struct {
 	} `json:"git"`
 }
 
-type codexTokenCount struct {
-	Input     int `json:"input"`
-	Output    int `json:"output"`
-	Cached    int `json:"cached"`
-	Reasoning int `json:"reasoning"`
-	Total     int `json:"total"`
+type codexTokenUsage struct {
+	InputTokens            int `json:"input_tokens"`
+	CachedInputTokens      int `json:"cached_input_tokens"`
+	OutputTokens           int `json:"output_tokens"`
+	ReasoningOutputTokens  int `json:"reasoning_output_tokens"`
+	TotalTokens            int `json:"total_tokens"`
 }
 
 type codexResponseItem struct {
@@ -43,10 +43,6 @@ type codexResponseItem struct {
 	Type  string `json:"type"`
 }
 
-type codexEventMsg struct {
-	Type       string          `json:"type"`
-	TokenCount *codexTokenCount `json:"token_count,omitempty"`
-}
 
 func codexDBPath() string {
 	home, _ := os.UserHomeDir()
@@ -117,8 +113,15 @@ func LoadCodexSessions() ([]Session, error) {
 			// Estimation: ~80% input, ~20% output
 			s.InputTokens = tokensUsed * 80 / 100
 			s.OutputTokens = tokensUsed * 20 / 100
-			s.Models[provider] = 1
-			s.Cost = ComputeCost(provider, s.InputTokens, s.OutputTokens, 0, 0)
+			model := "gpt-5.3-codex" // default codex model
+			s.Models[model] = 1
+			s.Cost = ComputeCost(model, s.InputTokens, s.OutputTokens, 0, 0)
+
+			dk := dayKeyFrom(s.StartTime)
+			s.PerDay[dk] = &DayTokens{
+				Input: s.InputTokens, Output: s.OutputTokens,
+				Messages: 1, Cost: s.Cost,
+			}
 		}
 
 		if !s.StartTime.IsZero() && !s.EndTime.IsZero() {
@@ -180,21 +183,22 @@ func enrichCodexSession(s *Session, path string) {
 
 		case "event_msg":
 			var em struct {
-				Type       string           `json:"type"`
-				TokenCount *codexTokenCount `json:"token_count,omitempty"`
+				Type string `json:"type"`
+				Info struct {
+					TotalTokenUsage *codexTokenUsage `json:"total_token_usage"`
+				} `json:"info"`
 			}
-			// Le payload peut être l'event directement ou wrappé
 			if err := json.Unmarshal(entry.Payload, &em); err == nil {
-				if em.Type == "token_count" && em.TokenCount != nil {
-					tc := em.TokenCount
-					s.InputTokens += tc.Input
-					s.OutputTokens += tc.Output
-					s.CacheReadTokens += tc.Cached
+				if em.Type == "token_count" && em.Info.TotalTokenUsage != nil {
+					tu := em.Info.TotalTokenUsage
+					s.InputTokens = tu.InputTokens
+					s.OutputTokens = tu.OutputTokens
+					s.CacheReadTokens = tu.CachedInputTokens
 					if model != "" {
 						s.Models[model]++
 					}
-					msgCost := ComputeCost(model, tc.Input, tc.Output, tc.Cached, 0)
-					s.Cost += msgCost
+					msgCost := ComputeCost(model, tu.InputTokens, tu.OutputTokens, tu.CachedInputTokens, 0)
+					s.Cost = msgCost
 
 					ts := s.StartTime
 					if !ts.IsZero() {
@@ -204,11 +208,11 @@ func enrichCodexSession(s *Session, path string) {
 							dt = &DayTokens{}
 							s.PerDay[dk] = dt
 						}
-						dt.Input += tc.Input
-						dt.Output += tc.Output
-						dt.CacheR += tc.Cached
+						dt.Input = tu.InputTokens
+						dt.Output = tu.OutputTokens
+						dt.CacheR = tu.CachedInputTokens
 						dt.Messages++
-						dt.Cost += msgCost
+						dt.Cost = msgCost
 					}
 				}
 			}
