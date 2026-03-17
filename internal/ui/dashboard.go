@@ -1003,6 +1003,7 @@ func (d Dashboard) viewModels(w int) string {
 		cost    float64
 		input   int
 		output  int
+		cache   int
 	}
 
 	mdMap := make(map[string]*modelData)
@@ -1027,6 +1028,7 @@ func (d Dashboard) viewModels(w int) string {
 			md.cost += sess.Cost * ratio
 			md.input += int(float64(sess.InputTokens) * ratio)
 			md.output += int(float64(sess.OutputTokens) * ratio)
+			md.cache += int(float64(sess.CacheReadTokens) * ratio)
 		}
 	}
 
@@ -1050,6 +1052,8 @@ func (d Dashboard) viewModels(w int) string {
 			less = a.input < b.input
 		case "output":
 			less = a.output < b.output
+		case "cache":
+			less = a.cache < b.cache
 		case "cout":
 			less = a.cost < b.cost
 		}
@@ -1065,22 +1069,24 @@ func (d Dashboard) viewModels(w int) string {
 		colMsgs   = 10
 		colIn     = 10
 		colOut    = 10
+		colCache  = 10
 		colCost   = 10
 	)
 
 	var rows []string
 
 	si := sortIndicator
-	header := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s",
+	header := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s %*s",
 		colModel, "(m)odèle"+si(so, "model"),
 		colSource, "(s)ource"+si(so, "source"),
 		colMsgs, "ms(g)s"+si(so, "msgs"),
 		colIn, "(i)nput"+si(so, "input"),
 		colOut, "(o)utput"+si(so, "output"),
+		colCache, "cac(h)e"+si(so, "cache"),
 		colCost, "(c)oût"+si(so, "cout"),
 	)
 	rows = append(rows, tableHeaderStyle.Render(header))
-	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colModel+colSource+colMsgs+colIn+colOut+colCost+12)))
+	rows = append(rows, labelStyle.Render("  "+strings.Repeat("─", colModel+colSource+colMsgs+colIn+colOut+colCache+colCost+14)))
 
 	totalMsgs := 0
 	for _, md := range models {
@@ -1095,12 +1101,13 @@ func (d Dashboard) viewModels(w int) string {
 		pct := pct(md.count, totalMsgs)
 		bar := d.miniBar(pct, 15)
 
-		row := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s  %s",
+		row := fmt.Sprintf("  %-*s %-*s %*s %*s %*s %*s %*s  %s",
 			colModel, name,
 			colSource, md.source,
 			colMsgs, fmtNum(md.count),
 			colIn, fmtNum(md.input),
 			colOut, fmtNum(md.output),
+			colCache, fmtNum(md.cache),
 			colCost, fmt.Sprintf("$%.2f", md.cost),
 			bar,
 		)
@@ -1154,9 +1161,9 @@ func (d *Dashboard) handleSortKey(key string) {
 		}[key]; ok {
 			d.toggleSort(&d.sortProjects, col)
 		}
-	case 6: // Modèles: m=model, s=source, g=msgs, i=input, o=output, c=coût
+	case 6: // Modèles: m=model, s=source, g=msgs, i=input, o=output, h=cache, c=coût
 		if col, ok := map[string]string{
-			"m": "model", "s": "source", "g": "msgs", "i": "input", "o": "output", "c": "cout",
+			"m": "model", "s": "source", "g": "msgs", "i": "input", "o": "output", "h": "cache", "c": "cout",
 		}[key]; ok {
 			d.toggleSort(&d.sortModels, col)
 		}
