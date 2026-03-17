@@ -305,6 +305,19 @@ func renderPNG(grid [][]cell, maxWidth int, regFace, boldFace font.Face) *image.
 				continue
 			}
 
+			// Handle block element characters (▁▂▃▄▅▆▇█░) as filled rectangles
+			if blockH, ok := blockHeight(c.ch, cellH); ok {
+				for dy := cellH - blockH; dy < cellH; dy++ {
+					for dx := 0; dx < cellW; dx++ {
+						px, py := x+dx, y+dy
+						if px >= 0 && px < imgW && py >= 0 && py < imgH {
+							img.SetRGBA(px, py, c.fg)
+						}
+					}
+				}
+				continue
+			}
+
 			face := regFace
 			if c.bold {
 				face = boldFace
@@ -418,6 +431,31 @@ func clipRoundedCorners(img *image.RGBA, w, h, r int) {
 			}
 		}
 	}
+}
+
+// blockHeight returns the pixel height for Unicode block elements, scaled to cellH.
+func blockHeight(ch rune, cellH int) (int, bool) {
+	switch ch {
+	case '▁': // LOWER ONE EIGHTH BLOCK
+		return cellH / 8, true
+	case '▂': // LOWER ONE QUARTER BLOCK
+		return cellH / 4, true
+	case '▃': // LOWER THREE EIGHTHS BLOCK
+		return cellH * 3 / 8, true
+	case '▄': // LOWER HALF BLOCK
+		return cellH / 2, true
+	case '▅': // LOWER FIVE EIGHTHS BLOCK
+		return cellH * 5 / 8, true
+	case '▆': // LOWER THREE QUARTERS BLOCK
+		return cellH * 3 / 4, true
+	case '▇': // LOWER SEVEN EIGHTHS BLOCK
+		return cellH * 7 / 8, true
+	case '█': // FULL BLOCK
+		return cellH, true
+	case '░': // LIGHT SHADE
+		return cellH, true
+	}
+	return 0, false
 }
 
 // ── Fake data ──
@@ -545,23 +583,37 @@ func richFakeStats() *data.Stats {
 		projects = append(projects, *p)
 	}
 
-	// Daily costs for 14 days
+	// Daily costs for 60 days with realistic variation
 	var dailyCosts []data.DayCost
 	totalCost := 0.0
-	for i := 13; i >= 0; i-- {
+	for i := 59; i >= 0; i-- {
 		d := now.AddDate(0, 0, -i)
-		cost := 0.50 + float64(13-i)*0.42
+		// Simulate realistic daily usage: base + trend + variation
+		dayOfWeek := int(d.Weekday())
+		weekendFactor := 1.0
+		if dayOfWeek == 0 || dayOfWeek == 6 {
+			weekendFactor = 0.3 // less usage on weekends
+		}
+		base := 1.2 + float64(59-i)*0.05 // slight upward trend
+		// Pseudo-random variation using day number
+		variation := float64((i*7+13)%11) / 10.0 // 0.0 to 1.0
+		cost := (base + variation*3.0) * weekendFactor
+		sessions := int(2+variation*4) * int(weekendFactor+0.5)
+		if sessions < 1 {
+			sessions = 1
+		}
+		msgs := int(float64(sessions) * (15 + variation*25))
 		dc := data.DayCost{
 			Date:         d,
-			Sessions:     2 + (13-i)%4,
-			Messages:     20 + (13-i)*8,
-			InputTokens:  30000 + (13-i)*12000,
-			OutputTokens: 15000 + (13-i)*6000,
-			CacheRead:    10000 + (13-i)*4000,
-			Cost:         cost,
+			Sessions:     sessions,
+			Messages:     msgs,
+			InputTokens:  int(float64(msgs) * 2500),
+			OutputTokens: int(float64(msgs) * 1200),
+			CacheRead:    int(float64(msgs) * 800),
+			Cost:         math.Round(cost*100) / 100,
 		}
 		dailyCosts = append(dailyCosts, dc)
-		totalCost += cost
+		totalCost += dc.Cost
 	}
 
 	return &data.Stats{
