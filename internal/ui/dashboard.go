@@ -291,7 +291,49 @@ func (d Dashboard) viewOverview(w int) string {
 
 	midRow := lipgloss.JoinHorizontal(lipgloss.Top, secondary, " ", modelsPanel)
 
-	return lipgloss.JoinVertical(lipgloss.Left, topRow, "", midRow)
+	// Sources
+	type sourceEntry struct {
+		name     string
+		sessions int
+		messages int
+		cost     float64
+	}
+	srcMap := make(map[string]*sourceEntry)
+	for _, sess := range s.Sessions {
+		src := sess.Source
+		if src == "" {
+			src = "claude"
+		}
+		se := srcMap[src]
+		if se == nil {
+			se = &sourceEntry{name: src}
+			srcMap[src] = se
+		}
+		se.sessions++
+		se.messages += sess.UserMessages + sess.AssistantMessages
+		se.cost += sess.Cost
+	}
+	var srcs []sourceEntry
+	for _, se := range srcMap {
+		srcs = append(srcs, *se)
+	}
+	sort.Slice(srcs, func(i, j int) bool { return srcs[i].sessions > srcs[j].sessions })
+
+	var srcRows []kv
+	for _, se := range srcs {
+		pct := float64(se.sessions) / float64(max(s.TotalSessions, 1)) * 100
+		bar := d.miniBar(pct, 15)
+		srcRows = append(srcRows, kv{se.name, fmt.Sprintf("%s %s  %s msgs  %s %s",
+			valueStyle.Render(fmt.Sprintf("%d", se.sessions)),
+			labelStyle.Render("sess"),
+			valueStyle.Render(fmtNum(se.messages)),
+			orangeStyle.Render(fmt.Sprintf("$%.0f", se.cost)),
+			bar,
+		)})
+	}
+	sourcesPanel := d.panel("Sources", w, srcRows...)
+
+	return lipgloss.JoinVertical(lipgloss.Left, topRow, "", midRow, "", sourcesPanel)
 }
 
 // --- Tab 1: Sessions ---
